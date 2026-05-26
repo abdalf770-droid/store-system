@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير - محل ابن الشيخ شتيه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .total-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .total-box h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .total-box .amount {
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .daily-sales {
+            margin-top: 20px;
+        }
+        .daily-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .daily-date {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .daily-total {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .no-data {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #138496;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        <h2>📊 التقارير الشهرية</h2>
+        
+        <div class="total-box">
+            <h3>📈 إجمالي مبيعات هذا الشهر</h3>
+            <div class="amount">{{ "%.2f"|format(monthly_total) }} ريال</div>
+        </div>
+        
+        <h3>📅 المبيعات اليومية</h3>
+        <div class="daily-sales">
+            {% if daily_sales %}
+                {% for sale in daily_sales %}
+                <div class="daily-item">
+                    <span class="daily-date">📆 {{ sale.date }}</span>
+                    <span class="daily-total">{{ "%.2f"|format(sale.daily_total) }} ريال</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-data">لا توجد مبيعات هذا الشهر</div>
+            {% endif %}
+        </div>
+        
+        <button onclick="location.href='/backup'">💾 عمل نسخة احتياطية الآن</button>
+    </div>
+</body>
+</html>

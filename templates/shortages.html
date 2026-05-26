@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>النواقص والطلبات - محل ابن الشيخ شتيه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #dc3545;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #218838;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        .priority-high {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .priority-medium {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .priority-low {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #ffc107;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .status-done {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .action-btn {
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+        .done-btn {
+            background: #28a745;
+            color: white;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+        .low-stock-item {
+            background: #fff3cd;
+            border-right: 5px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .add-to-order {
+            background: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        @media (max-width: 768px) {
+            th, td {
+                font-size: 12px;
+                padding: 8px;
+            }
+            .action-btn {
+                display: inline-block;
+                margin: 3px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        <h2>⚠️ نظام إدارة النواقص والطلبات</h2>
+        
+        <!-- نموذج إضافة طلب شراء جديد -->
+        <div class="card">
+            <h3>➕ إضافة طلب شراء جديد (صنف ناقص في المحل)</h3>
+            <form method="post">
+                <div class="form-group">
+                    <label>اسم الصنف المطلوب:</label>
+                    <input type="text" name="item_name" required placeholder="مثال: شاحن سريع نوع C">
+                </div>
+                <div class="form-group">
+                    <label>الكمية المطلوبة:</label>
+                    <input type="number" name="required_quantity" required min="1">
+                </div>
+                <div class="form-group">
+                    <label>الأولوية:</label>
+                    <select name="priority">
+                        <option value="عالي">🔴 عالي - ضروري جداً</option>
+                        <option value="متوسط" selected>🟡 متوسط - مهم</option>
+                        <option value="منخفض">🟢 منخفض - يمكن الانتظار</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات إضافية:</label>
+                    <textarea name="notes" rows="2" placeholder="أي تفاصيل إضافية..."></textarea>
+                </div>
+                <button type="submit">📦 إضافة طلب شراء</button>
+            </form>
+        </div>
+        
+        <!-- الأصناف منخفضة المخزون في المخزن -->
+        <div class="card">
+            <h3>⚠️ أصناف منخفضة المخزون (أقل من 5 قطع)</h3>
+            {% if low_stock_items %}
+                {% for item in low_stock_items %}
+                <div class="low-stock-item">
+                    <div>
+                        <strong>{{ item.name }}</strong><br>
+                        <small>المتبقي: {{ item.quantity }} قطعة | السعر: {{ item.current_price }} ريال</small>
+                    </div>
+                    <a href="#" class="add-to-order" onclick="fillOrderForm('{{ item.name }}')">➕ إضافة للطلبات</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: green; text-align: center;">✅ لا توجد أصناف منخفضة المخزون</p>
+            {% endif %}
+        </div>
+        
+        <!-- قائمة طلبات الشراء الحالية -->
+        <div class="card">
+            <h3>📋 طلبات الشراء المطلوبة</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الكمية</th>
+                            <th>الأولوية</th>
+                            <th>تاريخ الطلب</th>
+                            <th>الحالة</th>
+                            <th>ملاحظات</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>{{ order.item_name }}</td>
+                            <td>{{ order.required_quantity }}</td>
+                            <td class="priority-{% if order.priority == 'عالي' %}high{% elif order.priority == 'متوسط' %}medium{% else %}low{% endif %}">
+                                {% if order.priority == 'عالي' %}🔴 عالي
+                                {% elif order.priority == 'متوسط' %}🟡 متوسط
+                                {% else %}🟢 منخفض{% endif %}
+                            </td>
+                            <td>{{ order.date_requested[:10] }}</td>
+                            <td>
+                                {% if order.status == 'مطلوب' %}
+                                    <span class="status-pending">⏳ مطلوب</span>
+                                {% else %}
+                                    <span class="status-done">✅ تم الشراء</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.notes or '-' }}</td>
+                            <td>
+                                {% if order.status == 'مطلوب' %}
+                                    <a href="/update_order_status/{{ order.id }}" class="action-btn done-btn" onclick="return confirm('هل تم شراء هذا الصنف؟')">✅ تم الشراء</a>
+                                {% endif %}
+                                <a href="/delete_order/{{ order.id }}" class="action-btn delete-btn" onclick="return confirm('هل أنت متأكد من حذف هذا الطلب؟')">🗑️ حذف</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not orders %}
+                        <tr>
+                            <td colspan="7" style="text-align: center;">لا توجد طلبات شراء حالياً</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function fillOrderForm(itemName) {
+            document.querySelector('input[name="item_name"]').value = itemName;
+            document.querySelector('select[name="priority"]').value = 'متوسط';
+            document.querySelector('textarea[name="notes"]').value = 'تمت الإضافة تلقائياً بسبب نقص المخزون';
+            document.querySelector('button[type="submit"]').scrollIntoView({ behavior: 'smooth' });
+            alert('تم تعبئة نموذج الطلب تلقائياً، يمكنك تعديل الكمية ثم الضغط على إضافة طلب شراء');
+        }
+    </script>
+</body>
+</html>

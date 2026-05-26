@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سجل المبيعات - محل ابن الشيخ شتيه</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 { color: #667eea; margin-bottom: 20px; text-align: center; }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .summary-card h4 {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .summary-card .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #ddd; }
+        th { background: #667eea; color: white; }
+        tr:hover { background: #f5f5f5; }
+        .edit-btn, .return-btn, .delete-btn {
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+        .edit-btn { background: #ffc107; color: #333; }
+        .return-btn { background: #17a2b8; color: white; }
+        .delete-btn { background: #dc3545; color: white; }
+        .profit-positive { color: #28a745; font-weight: bold; }
+        .profit-negative { color: #dc3545; font-weight: bold; }
+        @media (max-width: 768px) {
+            th, td { font-size: 10px; padding: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        <h2>📋 سجل المبيعات والفواتير</h2>
+        
+        {% if sales %}
+        {% set total_sales = namespace(value=0) %}
+        {% set total_profit = namespace(value=0) %}
+        {% for sale in sales %}
+            {% set total_sales.value = total_sales.value + sale.total %}
+            {% set total_profit.value = total_profit.value + sale.profit %}
+        {% endfor %}
+        
+        <div class="summary">
+            <div class="summary-card">
+                <h4>💰 إجمالي المبيعات</h4>
+                <div class="value">{{ "%.2f"|format(total_sales.value) }} ريال</div>
+            </div>
+            <div class="summary-card">
+                <h4>📦 عدد الفواتير</h4>
+                <div class="value">{{ sales|length }}</div>
+            </div>
+            <div class="summary-card">
+                <h4>🎯 إجمالي الأرباح</h4>
+                <div class="value">{{ "%.2f"|format(total_profit.value) }} ريال</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>سعر الشراء</th>
+                        <th>سعر البيع</th>
+                        <th>الإجمالي</th>
+                        <th>تكلفة الشراء</th>
+                        <th>الربح</th>
+                        <th>نسبة الربح</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>{{ sale.date[:16] }}</td>
+                        <td>{{ sale.item_name or 'منتج محذوف' }}</td>
+                        <td>{{ sale.quantity_sold }}</td>
+                        <td>{{ "%.2f"|format(sale.purchase_price or 0) }}</td>
+                        <td>{{ "%.2f"|format(sale.selling_price) }}</td>
+                        <td>{{ "%.2f"|format(sale.total) }}</td>
+                        <td>{{ "%.2f"|format(sale.total_cost or 0) }}</td>
+                        <td class="{% if sale.profit > 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            {{ "%.2f"|format(sale.profit or 0) }}
+                        </td>
+                        <td class="{% if sale.profit_percent > 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            {% if sale.profit_percent > 0 %}+{% endif %}{{ "%.1f"|format(sale.profit_percent or 0) }}%
+                        </td>
+                        <td>
+                            <a href="/edit_sale/{{ sale.id }}" class="edit-btn">✏️ تعديل</a>
+                            <a href="/return_sale/{{ sale.id }}" class="return-btn">🔄 مرتجع</a>
+                            <a href="/delete_sale/{{ sale.id }}" class="delete-btn" onclick="return confirm('هل أنت متأكد من حذف هذه الفاتورة؟')">🗑️ حذف</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not sales %}
+                    <tr>
+                        <td colspan="10" style="text-align: center;">لا توجد مبيعات حتى الآن</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

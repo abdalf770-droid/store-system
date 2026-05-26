@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المخازن - محل ابن الشيخ شتيه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .add-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            margin-right: 10px;
+            padding: 8px 15px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow-x: auto;
+            display: block;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        .edit-btn {
+            background: #ffc107;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+        .stock-low {
+            color: red;
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            th, td {
+                font-size: 12px;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>
+            <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+            <a href="/add_item" class="add-btn">➕ إضافة صنف جديد</a>
+        </div>
+        <h2>📦 المخزون الحالي</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>الصنف</th>
+                        <th>سعر الشراء</th>
+                        <th>أقل سعر بيع</th>
+                        <th>أعلى سعر بيع</th>
+                        <th>متوسط السعر</th>
+                        <th>السعر الحالي</th>
+                        <th>الكمية</th>
+                        <th>القيمة (شراء)</th>
+                        <th>القيمة (بيع)</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td>{{ "%.2f"|format(item.purchase_price) }}</td>
+                        <td>{{ "%.2f"|format(item.min_selling_price) }}</td>
+                        <td>{{ "%.2f"|format(item.max_selling_price) }}</td>
+                        <td>{{ "%.2f"|format(item.avg_selling_price) }}</td>
+                        <td>{{ "%.2f"|format(item.current_price) }}</td>
+                        <td class="{% if item.quantity < 5 %}stock-low{% endif %}">{{ item.quantity }}</td>
+                        <td>{{ "%.2f"|format(item.purchase_price * item.quantity) }}</td>
+                        <td>{{ "%.2f"|format(item.current_price * item.quantity) }}</td>
+                        <td>
+                            <a href="/edit_item/{{ item.id }}" class="edit-btn">✏️ تعديل</a>
+                            <a href="/delete_item/{{ item.id }}" class="delete-btn" onclick="return confirm('هل أنت متأكد من حذف {{ item.name }} نهائياً؟')">🗑️ حذف</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

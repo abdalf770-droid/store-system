@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إضافة صنف - محل ابن الشيخ شتيه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #28a745;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #218838;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        <h2>➕ إضافة صنف جديد</h2>
+        <form method="post">
+            <div class="form-group">
+                <label>اسم الصنف:</label>
+                <input type="text" name="name" required placeholder="مثال: شاحن سريع 20W">
+            </div>
+            <div class="form-group">
+                <label>سعر الشراء:</label>
+                <input type="number" name="purchase_price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>أقل سعر بيع:</label>
+                <input type="number" name="min_price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>أعلى سعر بيع:</label>
+                <input type="number" name="max_price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>متوسط سعر البيع:</label>
+                <input type="number" name="avg_price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>سعر البيع الحالي:</label>
+                <input type="number" name="current_price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>الكمية المتوفرة:</label>
+                <input type="number" name="quantity" required>
+            </div>
+            <button type="submit">💾 حفظ الصنف</button>
+        </form>
+        <div class="info">
+            💡 نصيحة: أقل سعر بيع = سعر الشراء + ربح 10%<br>
+            💡 أعلى سعر بيع = سعر الشراء + ربح 50%<br>
+            💡 السعر الحالي = حسب سعر السوق
+        </div>
+    </div>
+</body>
+</html>

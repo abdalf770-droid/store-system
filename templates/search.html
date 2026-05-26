@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بحث - محل ابن الشيخ شتيه</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .search-box button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .result-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-right: 4px solid #667eea;
+        }
+        .result-name {
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+        }
+        .result-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .no-results {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        <h2>🔍 بحث عن صنف</h2>
+        
+        <form method="post" class="search-box">
+            <input type="text" name="keyword" placeholder="اكتب اسم الصنف... (مثال: شاحن)" required>
+            <button type="submit">🔍 بحث</button>
+        </form>
+        
+        <div id="results">
+            {% if result %}
+                <h3>نتائج البحث ({{ result|length }})</h3>
+                {% for item in result %}
+                <div class="result-item">
+                    <div class="result-name">{{ item.name }}</div>
+                    <div class="result-details">
+                        <span>💰 سعر الشراء: {{ "%.2f"|format(item.purchase_price) }} ريال</span>
+                        <span>💵 السعر الحالي: {{ "%.2f"|format(item.current_price) }} ريال</span>
+                        <span>📦 الكمية: {{ item.quantity }}</span>
+                        <span>📊 أقل سعر: {{ "%.2f"|format(item.min_selling_price) }} ريال</span>
+                        <span>📈 أعلى سعر: {{ "%.2f"|format(item.max_selling_price) }} ريال</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% elif request.method == 'POST' %}
+                <div class="no-results">❌ لا توجد نتائج مطابقة</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

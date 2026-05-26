@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تعديل بيع - محل ابن الشيخ شتيه</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 { color: #ffc107; margin-bottom: 20px; text-align: center; }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #ffc107;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/sales_list" class="back-btn">📋 العودة لسجل المبيعات</a>
+        <h2>✏️ تعديل عملية بيع</h2>
+        
+        <div class="info">
+            <strong>المنتج:</strong> {{ sale.item_name }}<br>
+            <strong>الكمية المتوفرة حالياً:</strong> {{ sale.available_qty }} قطعة
+        </div>
+        
+        <form method="post">
+            <div class="form-group">
+                <label>الكمية الجديدة:</label>
+                <input type="number" name="quantity" value="{{ sale.quantity_sold }}" required min="1">
+            </div>
+            <div class="form-group">
+                <label>سعر البيع الجديد:</label>
+                <input type="number" name="price" step="0.01" value="{{ sale.selling_price }}" required>
+            </div>
+            <button type="submit">💾 حفظ التعديل</button>
+        </form>
+        
+        <div class="info">
+            💡 ملاحظة: تغيير الكمية سيؤثر تلقائياً على المخزون
+        </div>
+    </div>
+</body>
+</html>
