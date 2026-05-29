@@ -19,7 +19,6 @@ def get_db():
     DATABASE_URL = os.environ.get('DATABASE_URL')
     
     if DATABASE_URL:
-       postgresql://store_bsl3_user:CFhbNm5fjdl0Ikzdd4qgH4edaY5XSpfb@dpg-d8csjceq1p3s73akfsu0-a/store_bsl3
         if 'db' not in g:
             try:
                 import psycopg2
