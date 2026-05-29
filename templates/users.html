@@ -2,12 +2,13 @@
 <html dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المستخدمين - محل ابن الشيخ</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Tahoma', Arial; background: #f4f4f4; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 15px; padding: 20px; }
-        h2 { color: #667eea; text-align: center; }
+        h2 { color: #667eea; text-align: center; margin-bottom: 20px; }
         .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 15px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; }
@@ -16,14 +17,12 @@
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #ddd; }
         th { background: #667eea; color: white; }
-        .role-badge { padding: 3px 8px; border-radius: 20px; font-size: 12px; }
-        .role-admin { background: #dc3545; color: white; }
-        .role-manager { background: #ffc107; color: #333; }
-        .role-employee { background: #28a745; color: white; }
-        .role-viewer { background: #17a2b8; color: white; }
+        .role-admin { background: #dc3545; color: white; padding: 3px 8px; border-radius: 20px; font-size: 12px; }
+        .role-employee { background: #28a745; color: white; padding: 3px 8px; border-radius: 20px; font-size: 12px; }
+        .role-viewer { background: #17a2b8; color: white; padding: 3px 8px; border-radius: 20px; font-size: 12px; }
         .delete-btn { background: #dc3545; color: white; padding: 3px 8px; border-radius: 5px; text-decoration: none; font-size: 12px; }
         .edit-form { display: inline; }
-        @media (max-width: 768px) { th, td { font-size: 12px; } }
+        .error { background: #fee; color: #c33; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -32,7 +31,7 @@
         <h2>👥 إدارة المستخدمين والصلاحيات</h2>
         
         {% if error %}
-        <div style="background: #fee; color: #c33; padding: 10px; border-radius: 8px; margin: 10px 0;">{{ error }}</div>
+        <div class="error">{{ error }}</div>
         {% endif %}
         
         <!-- نموذج إضافة مستخدم جديد -->
@@ -64,6 +63,7 @@
         </div>
         
         <!-- قائمة المستخدمين -->
+        <h3 style="margin-top: 30px;">📋 قائمة المستخدمين</h3>
         <table>
             <thead>
                 <tr><th>#</th><th>اسم المستخدم</th><th>الاسم الكامل</th><th>الصلاحية</th><th>تاريخ الإنشاء</th><th>الحالة</th><th>إجراءات</th></tr>
@@ -74,7 +74,11 @@
                     <td>{{ user.id }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.full_name or '-' }}</td>
-                    <td><span class="role-badge role-{% if user.role == 'مدير' %}admin{% elif user.role == 'موظف' %}employee{% else %}viewer{% endif %}">{{ user.role }}</span></td>
+                    <td>
+                        <span class="role-{% if user.role == 'مدير' %}admin{% elif user.role == 'موظف' %}employee{% else %}viewer{% endif %}">
+                            {{ user.role }}
+                        </span>
+                    </td>
                     <td>{{ user.created_at[:10] if user.created_at else '-' }}</td>
                     <td>{% if user.is_active %}✅ نشط{% else %}❌ غير نشط{% endif %}</td>
                     <td>
