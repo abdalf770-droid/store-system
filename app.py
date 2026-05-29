@@ -754,7 +754,59 @@ def delete_item(item_id):
     
     execute_query('DELETE FROM items WHERE id = ?', (item_id,))
     return redirect(url_for('inventory'))
-
+@app.route('/users', methods=['GET', 'POST'])
+def manage_users():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    # فقط المدير يمكنه إدارة المستخدمين
+    if session['user'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        full_name = request.form['full_name']
+        role = request.form['role']
+        
+        # التحقق من عدم وجود المستخدم
+        existing = execute_query('SELECT * FROM users WHERE username = ?', (username,), fetch_one=True)
+        if existing:
+            users = execute_query('SELECT * FROM users ORDER BY id', fetch_all=True)
+            permissions_list = execute_query('SELECT * FROM permissions', fetch_all=True)
+            return render_template('users.html', error='اسم المستخدم موجود مسبقاً', users=users, permissions_list=permissions_list)
+        
+        execute_query('''
+            INSERT INTO users (username, password, full_name, role, is_active, created_at)
+            VALUES (?, ?, ?, ?, 1, ?)
+        ''', (username, password, full_name, role, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        
+        return redirect(url_for('manage_users'))
+    
+    users = execute_query('SELECT * FROM users ORDER BY id', fetch_all=True)
+    permissions_list = execute_query('SELECT * FROM permissions', fetch_all=True)
+    
+    return render_template('users.html', users=users, permissions_list=permissions_list)
+    @app.route('/edit_user/<int:user_id>', methods=['POST'])
+def edit_user(user_id):
+    if 'user' not in session or session['user'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    role = request.form['role']
+    is_active = 1 if request.form.get('is_active') else 0
+    
+    execute_query('UPDATE users SET role = ?, is_active = ? WHERE id = ?', (role, is_active, user_id))
+    return redirect(url_for('manage_users'))
+    @app.route('/delete_user/<int:user_id>')
+def delete_user(user_id):
+    if 'user' not in session or session['user'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    user = execute_query('SELECT username FROM users WHERE id = ?', (user_id,), fetch_one=True)
+    if user and user['username'] != 'admin':
+        execute_query('DELETE FROM users WHERE id = ?', (user_id,))
+    
+    return redirect(url_for('manage_users'))
 if __name__ == '__main__':
     print("=" * 50)
     print("🚀 تشغيل نظام إدارة محل ابن الشيخ شتيه")
