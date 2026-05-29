@@ -806,7 +806,42 @@ def delete_user(user_id):
     if user and user['username'] != 'admin':
         execute_query('DELETE FROM users WHERE id = ?', (user_id,))
     
-    return redirect(url_for('manage_users'))
+  @app.route('/inventory_value')
+def inventory_value():
+    """عرض قيمة البضاعة بثلاثة أسعار مختلفة"""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    # جلب جميع الأصناف
+    items = execute_query('SELECT * FROM items', fetch_all=True)
+    
+    # حساب القيم الإجمالية
+    total_by_min = 0  # على أساس أقل سعر بيع
+    total_by_avg = 0  # على أساس متوسط سعر البيع
+    total_by_max = 0  # على أساس أعلى سعر بيع
+    total_by_current = 0  # على أساس السعر الحالي (للمقارنة)
+    
+    for item in items:
+        qty = item['quantity']
+        total_by_min += qty * item['min_selling_price']
+        total_by_avg += qty * item['avg_selling_price']
+        total_by_max += qty * item['max_selling_price']
+        total_by_current += qty * item['current_price']
+    
+    # حساب الفروقات
+    diff_min_current = total_by_current - total_by_min
+    diff_avg_current = total_by_current - total_by_avg
+    diff_max_current = total_by_max - total_by_current
+    
+    return render_template('inventory_value.html',
+                         items=items,
+                         total_by_min=total_by_min,
+                         total_by_avg=total_by_avg,
+                         total_by_max=total_by_max,
+                         total_by_current=total_by_current,
+                         diff_min_current=diff_min_current,
+                         diff_avg_current=diff_avg_current,
+                         diff_max_current=diff_max_current)  return redirect(url_for('manage_users'))
 if __name__ == '__main__':
     print("=" * 50)
     print("🚀 تشغيل نظام إدارة محل ابن الشيخ شتيه")
