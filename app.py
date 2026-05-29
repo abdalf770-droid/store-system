@@ -252,38 +252,14 @@ def dashboard():
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    try:
-        total_purchase = execute_query('SELECT COALESCE(SUM(purchase_price * quantity), 0) as total FROM items', fetch_one=True)
-        total_selling = execute_query('SELECT COALESCE(SUM(current_price * quantity), 0) as total FROM items', fetch_one=True)
-        
-        total_purchase_val = total_purchase['total'] if total_purchase else 0
-        total_selling_val = total_selling['total'] if total_selling else 0
-        
-        today = datetime.now().strftime('%Y-%m-%d')
-        today_sales = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE ?', 
-                                   (today + '%',), fetch_one=True)
-        today_sales_val = today_sales['total'] if today_sales else 0
-        
-        expected_profit = total_selling_val - total_purchase_val
-        
-        critical_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity <= 1', fetch_one=True)
-        low_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 2 AND 5', fetch_one=True)
-        
-        critical_items_count = critical_count['count'] if critical_count else 0
-        low_stock_count = low_count['count'] if low_count else 0
-        
-        return render_template('dashboard.html', 
-                             total_purchase=total_purchase_val, 
-                             total_selling=total_selling_val,
-                             today_sales=today_sales_val, 
-                             expected_profit=expected_profit,
-                             critical_items_count=critical_items_count,
-                             low_stock_count=low_stock_count)
-    except Exception as e:
-        print(f"⚠️ خطأ في dashboard: {e}")
-        traceback.print_exc()
-        return "حدث خطأ في النظام، يرجى المحاولة لاحقاً", 500
-
+    # قيم تجريبية للاختبار
+    return render_template('dashboard.html', 
+                         total_purchase=10000, 
+                         total_selling=15000,
+                         today_sales=500, 
+                         expected_profit=5000,
+                         critical_items_count=0,
+                         low_stock_count=0)
 @app.route('/sales', methods=['GET', 'POST'])
 def sales():
     if 'user' not in session:
