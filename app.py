@@ -101,14 +101,16 @@ def init_db():
     if DATABASE_URL:
         # PostgreSQL - إنشاء الجداول
         queries = [
-            # جدول المستخدمين
             '''CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
+                password TEXT NOT NULL,
+                full_name TEXT,
+                role TEXT DEFAULT 'موظف',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT
             )''',
             
-            # جدول الأصناف
             '''CREATE TABLE IF NOT EXISTS items (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -120,7 +122,6 @@ def init_db():
                 quantity INTEGER NOT NULL
             )''',
             
-            # جدول الفواتير
             '''CREATE TABLE IF NOT EXISTS invoices (
                 id SERIAL PRIMARY KEY,
                 date TEXT NOT NULL,
@@ -131,7 +132,6 @@ def init_db():
                 FOREIGN KEY (item_id) REFERENCES items (id)
             )''',
             
-            # جدول النسخ الاحتياطية
             '''CREATE TABLE IF NOT EXISTS backups_log (
                 id SERIAL PRIMARY KEY,
                 backup_date TEXT NOT NULL,
@@ -139,7 +139,6 @@ def init_db():
                 file_path TEXT NOT NULL
             )''',
             
-            # جدول طلبات الشراء
             '''CREATE TABLE IF NOT EXISTS purchase_orders (
                 id SERIAL PRIMARY KEY,
                 item_name TEXT NOT NULL,
@@ -150,7 +149,6 @@ def init_db():
                 notes TEXT
             )''',
             
-            # جدول المرتجعات
             '''CREATE TABLE IF NOT EXISTS returns_log (
                 id SERIAL PRIMARY KEY,
                 sale_id INTEGER,
@@ -161,7 +159,6 @@ def init_db():
                 return_date TEXT
             )''',
             
-            # ========== الجداول الجديدة ==========
             '''CREATE TABLE IF NOT EXISTS permissions (
                 id SERIAL PRIMARY KEY,
                 role TEXT UNIQUE NOT NULL,
@@ -188,7 +185,6 @@ def init_db():
                 log_date TEXT NOT NULL
             )''',
             
-            # إضافة الصلاحيات الافتراضية
             """INSERT INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) 
                VALUES ('مدير', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) 
                ON CONFLICT (role) DO NOTHING""",
@@ -200,6 +196,8 @@ def init_db():
             """INSERT INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) 
                VALUES ('مراقب', 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0) 
                ON CONFLICT (role) DO NOTHING""",
+            
+            "INSERT INTO users (username, password, role, created_at) SELECT 'admin', 'admin123', 'مدير', '2024-01-01' WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin')"
         ]
         
         for query in queries:
@@ -212,12 +210,15 @@ def init_db():
         with sqlite3.connect(DB_NAME) as conn:
             conn.row_factory = sqlite3.Row
             
-            # الجداول الموجودة
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL
+                    password TEXT NOT NULL,
+                    full_name TEXT,
+                    role TEXT DEFAULT 'موظف',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT
                 )
             ''')
             
@@ -279,7 +280,6 @@ def init_db():
                 )
             ''')
             
-            # الجداول الجديدة لـ SQLite
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS permissions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -310,15 +310,15 @@ def init_db():
                 )
             ''')
             
-            # إضافة الصلاحيات الافتراضية
             conn.execute("INSERT OR IGNORE INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) VALUES ('مدير', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)")
             conn.execute("INSERT OR IGNORE INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) VALUES ('موظف', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0)")
             conn.execute("INSERT OR IGNORE INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) VALUES ('مراقب', 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0)")
             
-            conn.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('admin', 'admin123')")
+            conn.execute("INSERT OR IGNORE INTO users (username, password, role, created_at) VALUES ('admin', 'admin123', 'مدير', '2024-01-01')")
             conn.commit()
     
     print("✅ قاعدة البيانات جاهزة!")
+
 @app.teardown_appcontext
 def close_db(error=None):
     """إغلاق اتصال قاعدة البيانات بعد كل طلب"""
@@ -350,13 +350,7 @@ def login():
         else:
             return render_template('login.html', error='بيانات الدخول غير صحيحة')
     return render_template('login.html')
-@app.route('/activity_logs')
-def activity_logs():
-    if 'user' not in session or session['user'] != 'admin':
-        return redirect(url_for('dashboard'))
-    
-    logs = execute_query('SELECT * FROM activity_logs ORDER BY log_date DESC LIMIT 200', fetch_all=True)
-    return render_template('activity_logs.html', logs=logs)
+
 @app.route('/logout')
 def logout():
     session.pop('user', None)
@@ -374,7 +368,6 @@ def dashboard():
                                (today + '%',), fetch_one=True)['total']
     expected_profit = total_selling - total_purchase
     
-    # إحصائيات التنبيهات
     critical_items_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity <= 1', fetch_one=True)['count']
     low_stock_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 2 AND 5', fetch_one=True)['count']
     
@@ -419,7 +412,6 @@ def inventory():
 
 @app.route('/low_stock_alert')
 def low_stock_alert():
-    """تنبيه للمخزون المنخفض جداً (0 أو 1 قطعة)"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
@@ -432,7 +424,6 @@ def low_stock_alert():
 
 @app.route('/dashboard_stats')
 def dashboard_stats():
-    """إحصائيات متقدمة للوحة التحكم"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
@@ -754,27 +745,29 @@ def delete_item(item_id):
     
     execute_query('DELETE FROM items WHERE id = ?', (item_id,))
     return redirect(url_for('inventory'))
+
+# ============================================================
+# إدارة المستخدمين والصلاحيات
+# ============================================================
+
 @app.route('/users', methods=['GET', 'POST'])
 def manage_users():
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # فقط المدير يمكنه إدارة المستخدمين
     if session['user'] != 'admin':
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        full_name = request.form['full_name']
+        full_name = request.form.get('full_name', '')
         role = request.form['role']
         
-        # التحقق من عدم وجود المستخدم
         existing = execute_query('SELECT * FROM users WHERE username = ?', (username,), fetch_one=True)
         if existing:
             users = execute_query('SELECT * FROM users ORDER BY id', fetch_all=True)
-            permissions_list = execute_query('SELECT * FROM permissions', fetch_all=True)
-            return render_template('users.html', error='اسم المستخدم موجود مسبقاً', users=users, permissions_list=permissions_list)
+            return render_template('users.html', error='اسم المستخدم موجود مسبقاً', users=users)
         
         execute_query('''
             INSERT INTO users (username, password, full_name, role, is_active, created_at)
@@ -784,10 +777,9 @@ def manage_users():
         return redirect(url_for('manage_users'))
     
     users = execute_query('SELECT * FROM users ORDER BY id', fetch_all=True)
-    permissions_list = execute_query('SELECT * FROM permissions', fetch_all=True)
-    
-    return render_template('users.html', users=users, permissions_list=permissions_list)
-    @app.route('/edit_user/<int:user_id>', methods=['POST'])
+    return render_template('users.html', users=users)
+
+@app.route('/edit_user/<int:user_id>', methods=['POST'])
 def edit_user(user_id):
     if 'user' not in session or session['user'] != 'admin':
         return redirect(url_for('dashboard'))
@@ -797,7 +789,8 @@ def edit_user(user_id):
     
     execute_query('UPDATE users SET role = ?, is_active = ? WHERE id = ?', (role, is_active, user_id))
     return redirect(url_for('manage_users'))
-    @app.route('/delete_user/<int:user_id>')
+
+@app.route('/delete_user/<int:user_id>')
 def delete_user(user_id):
     if 'user' not in session or session['user'] != 'admin':
         return redirect(url_for('dashboard'))
@@ -806,20 +799,28 @@ def delete_user(user_id):
     if user and user['username'] != 'admin':
         execute_query('DELETE FROM users WHERE id = ?', (user_id,))
     
-  @app.route('/inventory_value')
+    return redirect(url_for('manage_users'))
+
+@app.route('/activity_logs')
+def activity_logs():
+    if 'user' not in session or session['user'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    logs = execute_query('SELECT * FROM activity_logs ORDER BY log_date DESC LIMIT 200', fetch_all=True)
+    return render_template('activity_logs.html', logs=logs)
+
+@app.route('/inventory_value')
 def inventory_value():
     """عرض قيمة البضاعة بثلاثة أسعار مختلفة"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # جلب جميع الأصناف
     items = execute_query('SELECT * FROM items', fetch_all=True)
     
-    # حساب القيم الإجمالية
-    total_by_min = 0  # على أساس أقل سعر بيع
-    total_by_avg = 0  # على أساس متوسط سعر البيع
-    total_by_max = 0  # على أساس أعلى سعر بيع
-    total_by_current = 0  # على أساس السعر الحالي (للمقارنة)
+    total_by_min = 0
+    total_by_avg = 0
+    total_by_max = 0
+    total_by_current = 0
     
     for item in items:
         qty = item['quantity']
@@ -828,7 +829,6 @@ def inventory_value():
         total_by_max += qty * item['max_selling_price']
         total_by_current += qty * item['current_price']
     
-    # حساب الفروقات
     diff_min_current = total_by_current - total_by_min
     diff_avg_current = total_by_current - total_by_avg
     diff_max_current = total_by_max - total_by_current
@@ -841,7 +841,8 @@ def inventory_value():
                          total_by_current=total_by_current,
                          diff_min_current=diff_min_current,
                          diff_avg_current=diff_avg_current,
-                         diff_max_current=diff_max_current)  return redirect(url_for('manage_users'))
+                         diff_max_current=diff_max_current)
+
 if __name__ == '__main__':
     print("=" * 50)
     print("🚀 تشغيل نظام إدارة محل ابن الشيخ شتيه")
