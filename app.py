@@ -48,13 +48,8 @@ def get_db():
 
 def get_cursor():
     """إرجاع مؤشر cursor مناسب لنوع قاعدة البيانات"""
-    DATABASE_URL = os.environ.get('DATABASE_URL')
     db = get_db()
-    
-    if DATABASE_URL:
-        return db.cursor()
-    else:
-        return db.cursor()
+    return db.cursor()
 
 def execute_query(query, params=None, fetch_one=False, fetch_all=False):
     """تنفيذ استعلام مع دعم كل من SQLite و PostgreSQL"""
@@ -97,107 +92,114 @@ def close_db(error=None):
         g.db.close()
 
 # ============================================================
-# تهيئة قاعدة البيانات
+# تهيئة قاعدة البيانات (بدون سياق التطبيق)
 # ============================================================
 
-def # ============================================================
-# تهيئة قاعدة البيانات (داخل سياق التطبيق)
-# ============================================================
-
-with app.app_context():
-    init_db()
+def init_db():
     """تهيئة قاعدة البيانات (جداول ومستخدم افتراضي)"""
     DATABASE_URL = os.environ.get('DATABASE_URL')
     
     try:
         if DATABASE_URL:
-            # PostgreSQL
-            queries = [
-                '''CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    full_name TEXT,
-                    role TEXT DEFAULT 'موظف',
-                    is_active INTEGER DEFAULT 1,
-                    created_at TEXT
-                )''',
-                
-                '''CREATE TABLE IF NOT EXISTS items (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    purchase_price REAL NOT NULL,
-                    min_selling_price REAL NOT NULL,
-                    max_selling_price REAL NOT NULL,
-                    avg_selling_price REAL NOT NULL,
-                    current_price REAL NOT NULL,
-                    quantity INTEGER NOT NULL
-                )''',
-                
-                '''CREATE TABLE IF NOT EXISTS invoices (
-                    id SERIAL PRIMARY KEY,
-                    date TEXT NOT NULL,
-                    item_id INTEGER,
-                    quantity_sold INTEGER,
-                    selling_price REAL,
-                    total REAL
-                )''',
-                
-                '''CREATE TABLE IF NOT EXISTS purchase_orders (
-                    id SERIAL PRIMARY KEY,
-                    item_name TEXT NOT NULL,
-                    required_quantity INTEGER NOT NULL,
-                    priority TEXT DEFAULT 'متوسط',
-                    status TEXT DEFAULT 'مطلوب',
-                    date_requested TEXT NOT NULL,
-                    notes TEXT
-                )''',
-                
-                '''CREATE TABLE IF NOT EXISTS returns_log (
-                    id SERIAL PRIMARY KEY,
-                    sale_id INTEGER,
-                    item_name TEXT,
-                    return_quantity INTEGER,
-                    return_amount REAL,
-                    reason TEXT,
-                    return_date TEXT
-                )''',
-                
-                '''CREATE TABLE IF NOT EXISTS permissions (
-                    id SERIAL PRIMARY KEY,
-                    role TEXT UNIQUE NOT NULL,
-                    can_sales INTEGER DEFAULT 0,
-                    can_add_items INTEGER DEFAULT 0,
-                    can_edit_items INTEGER DEFAULT 0,
-                    can_delete_items INTEGER DEFAULT 0,
-                    can_inventory INTEGER DEFAULT 0,
-                    can_shortages INTEGER DEFAULT 0,
-                    can_reports INTEGER DEFAULT 0,
-                    can_sales_list INTEGER DEFAULT 0,
-                    can_returns INTEGER DEFAULT 0,
-                    can_manage_users INTEGER DEFAULT 0,
-                    can_view_logs INTEGER DEFAULT 0
-                )''',
-                
-                '''CREATE TABLE IF NOT EXISTS activity_logs (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER,
-                    username TEXT,
-                    action TEXT NOT NULL,
-                    details TEXT,
-                    ip_address TEXT,
-                    log_date TEXT NOT NULL
-                )''',
-            ]
+            # PostgreSQL - اتصال مباشر
+            import psycopg2
             
-            for query in queries:
-                try:
-                    execute_query(query)
-                except Exception as e:
-                    print(f"⚠️ خطأ: {e}")
+            urlparse.uses_netloc.append("postgres")
+            url = urlparse.urlparse(DATABASE_URL)
+            
+            conn = psycopg2.connect(
+                database=url.path[1:],
+                user=url.username,
+                password=url.password,
+                host=url.hostname,
+                port=url.port,
+                sslmode='require'
+            )
+            cursor = conn.cursor()
+            
+            # إنشاء الجداول
+            cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                full_name TEXT,
+                role TEXT DEFAULT 'موظف',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT
+            )''')
+            
+            cursor.execute('''CREATE TABLE IF NOT EXISTS items (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                purchase_price REAL NOT NULL,
+                min_selling_price REAL NOT NULL,
+                max_selling_price REAL NOT NULL,
+                avg_selling_price REAL NOT NULL,
+                current_price REAL NOT NULL,
+                quantity INTEGER NOT NULL
+            )''')
+            
+            cursor.execute('''CREATE TABLE IF NOT EXISTS invoices (
+                id SERIAL PRIMARY KEY,
+                date TEXT NOT NULL,
+                item_id INTEGER,
+                quantity_sold INTEGER,
+                selling_price REAL,
+                total REAL
+            )''')
+            
+            cursor.execute('''CREATE TABLE IF NOT EXISTS purchase_orders (
+                id SERIAL PRIMARY KEY,
+                item_name TEXT NOT NULL,
+                required_quantity INTEGER NOT NULL,
+                priority TEXT DEFAULT 'متوسط',
+                status TEXT DEFAULT 'مطلوب',
+                date_requested TEXT NOT NULL,
+                notes TEXT
+            )''')
+            
+            cursor.execute('''CREATE TABLE IF NOT EXISTS returns_log (
+                id SERIAL PRIMARY KEY,
+                sale_id INTEGER,
+                item_name TEXT,
+                return_quantity INTEGER,
+                return_amount REAL,
+                reason TEXT,
+                return_date TEXT
+            )''')
+            
+            cursor.execute('''CREATE TABLE IF NOT EXISTS permissions (
+                id SERIAL PRIMARY KEY,
+                role TEXT UNIQUE NOT NULL,
+                can_sales INTEGER DEFAULT 0,
+                can_add_items INTEGER DEFAULT 0,
+                can_edit_items INTEGER DEFAULT 0,
+                can_delete_items INTEGER DEFAULT 0,
+                can_inventory INTEGER DEFAULT 0,
+                can_shortages INTEGER DEFAULT 0,
+                can_reports INTEGER DEFAULT 0,
+                can_sales_list INTEGER DEFAULT 0,
+                can_returns INTEGER DEFAULT 0,
+                can_manage_users INTEGER DEFAULT 0,
+                can_view_logs INTEGER DEFAULT 0
+            )''')
+            
+            cursor.execute('''CREATE TABLE IF NOT EXISTS activity_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                username TEXT,
+                action TEXT NOT NULL,
+                details TEXT,
+                ip_address TEXT,
+                log_date TEXT NOT NULL
+            )''')
             
             # إضافة المستخدم الافتراضي
-            execute_query("INSERT INTO users (username, password, role, created_at) SELECT 'admin', 'admin123', 'مدير', '2024-01-01' WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin')")
+            cursor.execute("INSERT INTO users (username, password, role, created_at) SELECT 'admin', 'admin123', 'مدير', '2024-01-01' WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin')")
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
             
         else:
             # SQLite
@@ -217,7 +219,9 @@ with app.app_context():
         print(f"⚠️ خطأ في تهيئة قاعدة البيانات: {e}")
         traceback.print_exc()
 
-# تشغيل التهيئة
+# ============================================================
+# تشغيل تهيئة قاعدة البيانات
+# ============================================================
 init_db()
 
 # ============================================================
@@ -249,7 +253,6 @@ def dashboard():
         return redirect(url_for('login'))
     
     try:
-        # حساب الإجماليات
         total_purchase = execute_query('SELECT COALESCE(SUM(purchase_price * quantity), 0) as total FROM items', fetch_one=True)
         total_selling = execute_query('SELECT COALESCE(SUM(current_price * quantity), 0) as total FROM items', fetch_one=True)
         
@@ -263,7 +266,6 @@ def dashboard():
         
         expected_profit = total_selling_val - total_purchase_val
         
-        # إحصائيات التنبيهات
         critical_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity <= 1', fetch_one=True)
         low_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 2 AND 5', fetch_one=True)
         
@@ -477,6 +479,161 @@ def edit_item(item_id):
         return redirect(url_for('inventory'))
     
     return render_template('edit_item.html', item=item)
+
+@app.route('/backup')
+def backup():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    if os.environ.get('DATABASE_URL'):
+        return jsonify({'message': '⚠️ النسخ الاحتياطي متاح فقط في النسخة المحلية (SQLite)'})
+    
+    backup_dir = 'backups'
+    os.makedirs(backup_dir, exist_ok=True)
+    backup_file = f"{backup_dir}/backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    shutil.copy(DB_NAME, backup_file)
+    return jsonify({'message': f'تم إنشاء النسخة الاحتياطية: {backup_file}'})
+
+@app.route('/get_items_json')
+def get_items_json():
+    items = execute_query('SELECT id, name, current_price, quantity FROM items WHERE quantity > 0', fetch_all=True)
+    return jsonify(items)
+
+@app.route('/low_stock_alert')
+def low_stock_alert():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    critical_items = execute_query('SELECT * FROM items WHERE quantity <= 1 ORDER BY quantity ASC', fetch_all=True)
+    low_items = execute_query('SELECT * FROM items WHERE quantity BETWEEN 2 AND 4 ORDER BY quantity ASC', fetch_all=True)
+    
+    return render_template('low_stock_alert.html', 
+                         critical_items=critical_items, 
+                         low_items=low_items)
+
+@app.route('/dashboard_stats')
+def dashboard_stats():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_sales_count = execute_query('SELECT COUNT(*) as count FROM invoices WHERE date LIKE ?', (today + '%',), fetch_one=True)['count']
+    today_items_sold = execute_query('SELECT COALESCE(SUM(quantity_sold), 0) as total FROM invoices WHERE date LIKE ?', (today + '%',), fetch_one=True)['total']
+    today_revenue = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE ?', (today + '%',), fetch_one=True)['total']
+    
+    weekly_activity = execute_query('SELECT DATE(date) as day, COUNT(*) as invoices, SUM(total) as revenue FROM invoices WHERE date >= DATE("now", "-7 days") GROUP BY DATE(date) ORDER BY day DESC', fetch_all=True)
+    
+    top_items = execute_query('SELECT items.name, SUM(invoices.quantity_sold) as total_sold, SUM(invoices.total) as revenue FROM invoices LEFT JOIN items ON invoices.item_id = items.id GROUP BY items.id ORDER BY total_sold DESC LIMIT 10', fetch_all=True)
+    
+    stock_ranking = execute_query('SELECT name, quantity, current_price, purchase_price FROM items ORDER BY quantity ASC', fetch_all=True)
+    
+    total_items = execute_query('SELECT COUNT(*) as count FROM items', fetch_one=True)['count']
+    out_of_stock = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity = 0', fetch_one=True)['count']
+    low_stock = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 1 AND 5', fetch_one=True)['count']
+    
+    return render_template('dashboard_stats.html',
+                         today_sales_count=today_sales_count,
+                         today_items_sold=today_items_sold,
+                         today_revenue=today_revenue,
+                         weekly_activity=weekly_activity,
+                         top_items=top_items,
+                         stock_ranking=stock_ranking,
+                         total_items=total_items,
+                         out_of_stock=out_of_stock,
+                         low_stock=low_stock)
+
+@app.route('/update_order_status/<int:order_id>')
+def update_order_status(order_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    execute_query('UPDATE purchase_orders SET status = "تم الشراء" WHERE id = ?', (order_id,))
+    return redirect(url_for('shortages'))
+
+@app.route('/delete_order/<int:order_id>')
+def delete_order(order_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    execute_query('DELETE FROM purchase_orders WHERE id = ?', (order_id,))
+    return redirect(url_for('shortages'))
+
+@app.route('/return_sale/<int:sale_id>', methods=['GET', 'POST'])
+def return_sale(sale_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    sale = execute_query('SELECT invoices.*, items.name as item_name FROM invoices LEFT JOIN items ON invoices.item_id = items.id WHERE invoices.id = ?', (sale_id,), fetch_one=True)
+    
+    if request.method == 'POST':
+        return_quantity = int(request.form['return_quantity'])
+        reason = request.form['reason']
+        
+        if return_quantity <= sale['quantity_sold']:
+            execute_query('UPDATE items SET quantity = quantity + ? WHERE id = ?', (return_quantity, sale['item_id']))
+            
+            return_amount = return_quantity * sale['selling_price']
+            execute_query('INSERT INTO returns_log (sale_id, item_name, return_quantity, return_amount, reason, return_date) VALUES (?, ?, ?, ?, ?, ?)',
+                       (sale_id, sale['item_name'], return_quantity, return_amount, reason, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            
+            new_quantity = sale['quantity_sold'] - return_quantity
+            if new_quantity > 0:
+                new_total = new_quantity * sale['selling_price']
+                execute_query('UPDATE invoices SET quantity_sold = ?, total = ? WHERE id = ?', (new_quantity, new_total, sale_id))
+            else:
+                execute_query('DELETE FROM invoices WHERE id = ?', (sale_id,))
+            
+            return redirect(url_for('sales_list'))
+    
+    return render_template('return_sale.html', sale=sale)
+
+@app.route('/returns_report')
+def returns_report():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    returns = execute_query('SELECT * FROM returns_log ORDER BY return_date DESC', fetch_all=True)
+    total_returns = execute_query('SELECT COALESCE(SUM(return_amount), 0) as total FROM returns_log', fetch_one=True)['total']
+    
+    return render_template('returns_report.html', returns=returns, total_returns=total_returns)
+
+@app.route('/edit_sale/<int:sale_id>', methods=['GET', 'POST'])
+def edit_sale(sale_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        new_quantity = int(request.form['quantity'])
+        new_price = float(request.form['price'])
+        sale = execute_query('SELECT * FROM invoices WHERE id = ?', (sale_id,), fetch_one=True)
+        
+        if sale:
+            old_quantity = sale['quantity_sold']
+            new_total = new_price * new_quantity
+            
+            execute_query('UPDATE items SET quantity = quantity + ? WHERE id = ?', (old_quantity, sale['item_id']))
+            execute_query('UPDATE items SET quantity = quantity - ? WHERE id = ?', (new_quantity, sale['item_id']))
+            execute_query('UPDATE invoices SET quantity_sold = ?, selling_price = ?, total = ? WHERE id = ?',
+                       (new_quantity, new_price, new_total, sale_id))
+        
+        return redirect(url_for('sales_list'))
+    
+    sale = execute_query('SELECT invoices.*, items.name as item_name, items.current_price, items.quantity as available_qty FROM invoices LEFT JOIN items ON invoices.item_id = items.id WHERE invoices.id = ?', (sale_id,), fetch_one=True)
+    
+    return render_template('edit_sale.html', sale=sale)
+
+@app.route('/delete_sale/<int:sale_id>')
+def delete_sale(sale_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    sale = execute_query('SELECT * FROM invoices WHERE id = ?', (sale_id,), fetch_one=True)
+    
+    if sale:
+        execute_query('UPDATE items SET quantity = quantity + ? WHERE id = ?', (sale['quantity_sold'], sale['item_id']))
+        execute_query('DELETE FROM invoices WHERE id = ?', (sale_id,))
+    
+    return redirect(url_for('sales_list'))
 
 # ============================================================
 # تشغيل التطبيق
