@@ -72,7 +72,6 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False):
         if fetch_one:
             if DATABASE_URL:
                 result = cursor.fetchone()
-                # تحويل RealDictCursor إلى dict عادي
                 if result:
                     result = dict(result)
             else:
@@ -82,7 +81,6 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False):
         elif fetch_all:
             if DATABASE_URL:
                 results = cursor.fetchall()
-                # تحويل قائمة RealDictCursor إلى قائمة dict
                 results = [dict(row) for row in results]
             else:
                 results = cursor.fetchall()
@@ -94,8 +92,6 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False):
     except Exception as e:
         db.rollback()
         print(f"⚠️ خطأ في الاستعلام: {e}")
-        print(f"⚠️ الاستعلام: {query}")
-        print(f"⚠️ المعاملات: {params}")
         raise e
 
 def init_db():
@@ -159,7 +155,6 @@ def init_db():
                 return_date TEXT
             )''',
             
-            # إضافة مستخدم افتراضي
             "INSERT INTO users (username, password) SELECT 'admin', 'admin123' WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin')"
         ]
         
@@ -293,11 +288,17 @@ def dashboard():
                                (today + '%',), fetch_one=True)['total']
     expected_profit = total_selling - total_purchase
     
+    # إحصائيات التنبيهات
+    critical_items_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity <= 1', fetch_one=True)['count']
+    low_stock_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 2 AND 5', fetch_one=True)['count']
+    
     return render_template('dashboard.html', 
                          total_purchase=total_purchase, 
                          total_selling=total_selling,
                          today_sales=today_sales, 
-                         expected_profit=expected_profit)
+                         expected_profit=expected_profit,
+                         critical_items_count=critical_items_count,
+                         low_stock_count=low_stock_count)
 
 @app.route('/sales', methods=['GET', 'POST'])
 def sales():
@@ -329,35 +330,26 @@ def inventory():
         return redirect(url_for('login'))
     items = execute_query('SELECT * FROM items', fetch_all=True)
     return render_template('inventory.html', items=items)
+
 @app.route('/low_stock_alert')
 def low_stock_alert():
     """تنبيه للمخزون المنخفض جداً (0 أو 1 قطعة)"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # الأصناف التي وصلت إلى 0 أو 1
-    critical_items = execute_query('''
-        SELECT * FROM items 
-        WHERE quantity <= 1 
-        ORDER BY quantity ASC
-    ''', fetch_all=True)
-    
-    # الأصناف المنخفضة (أقل من 5) للعلم
-    low_items = execute_query('''
-        SELECT * FROM items 
-        WHERE quantity BETWEEN 2 AND 4 
-        ORDER BY quantity ASC
-    ''', fetch_all=True)
+    critical_items = execute_query('SELECT * FROM items WHERE quantity <= 1 ORDER BY quantity ASC', fetch_all=True)
+    low_items = execute_query('SELECT * FROM items WHERE quantity BETWEEN 2 AND 4 ORDER BY quantity ASC', fetch_all=True)
     
     return render_template('low_stock_alert.html', 
                          critical_items=critical_items, 
- @app.route('/dashboard_stats')
+                         low_items=low_items)
+
+@app.route('/dashboard_stats')
 def dashboard_stats():
     """إحصائيات متقدمة للوحة التحكم"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # 1. حركة المرور (نشاط اليوم)
     today = datetime.now().strftime('%Y-%m-%d')
     today_sales_count = execute_query('SELECT COUNT(*) as count FROM invoices WHERE date LIKE ?', 
                                       (today + '%',), fetch_one=True)['count']
@@ -366,7 +358,6 @@ def dashboard_stats():
     today_revenue = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE ?',
                                   (today + '%',), fetch_one=True)['total']
     
-    # عدد الفواتير في آخر 7 أيام
     weekly_activity = execute_query('''
         SELECT DATE(date) as day, COUNT(*) as invoices, SUM(total) as revenue
         FROM invoices 
@@ -375,7 +366,6 @@ def dashboard_stats():
         ORDER BY day DESC
     ''', fetch_all=True)
     
-    # 2. أكثر 10 أصناف مبيعاً
     top_items = execute_query('''
         SELECT 
             items.name,
@@ -391,7 +381,6 @@ def dashboard_stats():
         LIMIT 10
     ''', fetch_all=True)
     
-    # 3. ترتيب الأصناف من الأقل توفراً للأكثر
     stock_ranking = execute_query('''
         SELECT 
             name,
@@ -409,7 +398,6 @@ def dashboard_stats():
         ORDER BY quantity ASC
     ''', fetch_all=True)
     
-    # إحصائيات سريعة
     total_items = execute_query('SELECT COUNT(*) as count FROM items', fetch_one=True)['count']
     out_of_stock = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity = 0', fetch_one=True)['count']
     low_stock = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 1 AND 5', fetch_one=True)['count']
@@ -423,7 +411,8 @@ def dashboard_stats():
                          stock_ranking=stock_ranking,
                          total_items=total_items,
                          out_of_stock=out_of_stock,
-                         low_stock=low_stock)                        low_items=low_items)
+                         low_stock=low_stock)
+
 @app.route('/shortages', methods=['GET', 'POST'])
 def shortages():
     if 'user' not in session:
@@ -474,14 +463,12 @@ def reports():
         return redirect(url_for('login'))
     
     if os.environ.get('DATABASE_URL'):
-        # PostgreSQL
         daily_sales = execute_query('''SELECT DATE(date) as date, SUM(total) as daily_total FROM invoices 
                                       WHERE EXTRACT(YEAR_MONTH FROM date) = EXTRACT(YEAR_MONTH FROM NOW())
                                       GROUP BY DATE(date) ORDER BY date DESC''', fetch_all=True)
         monthly_total = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE EXTRACT(YEAR_MONTH FROM date) = EXTRACT(YEAR_MONTH FROM NOW())', 
                                      fetch_one=True)['total']
     else:
-        # SQLite
         daily_sales = execute_query('''SELECT date(date) as date, SUM(total) as daily_total FROM invoices 
                                       WHERE strftime("%Y-%m", date) = strftime("%Y-%m", "now") 
                                       GROUP BY date(date) ORDER BY date DESC''', fetch_all=True)
