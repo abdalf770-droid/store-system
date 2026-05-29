@@ -329,7 +329,101 @@ def inventory():
         return redirect(url_for('login'))
     items = execute_query('SELECT * FROM items', fetch_all=True)
     return render_template('inventory.html', items=items)
-
+@app.route('/low_stock_alert')
+def low_stock_alert():
+    """تنبيه للمخزون المنخفض جداً (0 أو 1 قطعة)"""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    # الأصناف التي وصلت إلى 0 أو 1
+    critical_items = execute_query('''
+        SELECT * FROM items 
+        WHERE quantity <= 1 
+        ORDER BY quantity ASC
+    ''', fetch_all=True)
+    
+    # الأصناف المنخفضة (أقل من 5) للعلم
+    low_items = execute_query('''
+        SELECT * FROM items 
+        WHERE quantity BETWEEN 2 AND 4 
+        ORDER BY quantity ASC
+    ''', fetch_all=True)
+    
+    return render_template('low_stock_alert.html', 
+                         critical_items=critical_items, 
+ @app.route('/dashboard_stats')
+def dashboard_stats():
+    """إحصائيات متقدمة للوحة التحكم"""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    # 1. حركة المرور (نشاط اليوم)
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_sales_count = execute_query('SELECT COUNT(*) as count FROM invoices WHERE date LIKE ?', 
+                                      (today + '%',), fetch_one=True)['count']
+    today_items_sold = execute_query('SELECT COALESCE(SUM(quantity_sold), 0) as total FROM invoices WHERE date LIKE ?',
+                                     (today + '%',), fetch_one=True)['total']
+    today_revenue = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE ?',
+                                  (today + '%',), fetch_one=True)['total']
+    
+    # عدد الفواتير في آخر 7 أيام
+    weekly_activity = execute_query('''
+        SELECT DATE(date) as day, COUNT(*) as invoices, SUM(total) as revenue
+        FROM invoices 
+        WHERE date >= DATE('now', '-7 days')
+        GROUP BY DATE(date)
+        ORDER BY day DESC
+    ''', fetch_all=True)
+    
+    # 2. أكثر 10 أصناف مبيعاً
+    top_items = execute_query('''
+        SELECT 
+            items.name,
+            SUM(invoices.quantity_sold) as total_sold,
+            COUNT(invoices.id) as times_sold,
+            SUM(invoices.total) as revenue,
+            items.current_price,
+            items.quantity as current_stock
+        FROM invoices 
+        LEFT JOIN items ON invoices.item_id = items.id 
+        GROUP BY items.id
+        ORDER BY total_sold DESC
+        LIMIT 10
+    ''', fetch_all=True)
+    
+    # 3. ترتيب الأصناف من الأقل توفراً للأكثر
+    stock_ranking = execute_query('''
+        SELECT 
+            name,
+            quantity,
+            current_price,
+            purchase_price,
+            CASE 
+                WHEN quantity = 0 THEN 'نفد بالكامل'
+                WHEN quantity <= 2 THEN 'حرج جداً'
+                WHEN quantity <= 5 THEN 'منخفض'
+                WHEN quantity <= 10 THEN 'جيد'
+                ELSE 'ممتاز'
+            END as stock_status
+        FROM items 
+        ORDER BY quantity ASC
+    ''', fetch_all=True)
+    
+    # إحصائيات سريعة
+    total_items = execute_query('SELECT COUNT(*) as count FROM items', fetch_one=True)['count']
+    out_of_stock = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity = 0', fetch_one=True)['count']
+    low_stock = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 1 AND 5', fetch_one=True)['count']
+    
+    return render_template('dashboard_stats.html',
+                         today_sales_count=today_sales_count,
+                         today_items_sold=today_items_sold,
+                         today_revenue=today_revenue,
+                         weekly_activity=weekly_activity,
+                         top_items=top_items,
+                         stock_ranking=stock_ranking,
+                         total_items=total_items,
+                         out_of_stock=out_of_stock,
+                         low_stock=low_stock)                        low_items=low_items)
 @app.route('/shortages', methods=['GET', 'POST'])
 def shortages():
     if 'user' not in session:
