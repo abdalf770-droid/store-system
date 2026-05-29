@@ -19,6 +19,7 @@
             color: white;
             padding: 20px;
             text-align: center;
+            position: relative;
         }
         .logout-btn {
             position: absolute;
@@ -29,6 +30,32 @@
             border-radius: 8px;
             text-decoration: none;
             color: white;
+        }
+        /* تنبيهات المخزون */
+        .alert-critical {
+            background: #dc3545;
+            color: white;
+            padding: 15px;
+            margin: 10px auto;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 1200px;
+        }
+        .alert-warning {
+            background: #ffc107;
+            color: #333;
+            padding: 15px;
+            margin: 10px auto;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 1200px;
+        }
+        .alert-link {
+            color: white;
+            text-decoration: underline;
+        }
+        .alert-warning .alert-link {
+            color: #333;
         }
         .stats {
             display: grid;
@@ -90,9 +117,26 @@
 <body>
     <div class="header">
         <a href="/logout" class="logout-btn">🚪 خروج</a>
-        <h1>🏪 محل بن الشيخ </h1>
+        <h1>🏪 محل ابن الشيخ شتيه</h1>
         <p>مرحباً بك في نظام إدارة المحل</p>
     </div>
+
+    <!-- ============================================ -->
+    <!-- تنبيهات المخزون المنخفض (نهاية الهدر) -->
+    <!-- ============================================ -->
+    {% if critical_items_count > 0 %}
+    <div class="alert-critical">
+        <span style="font-size: 24px;">🚨 تنبيه عاجل 🚨</span><br>
+        هناك {{ critical_items_count }} صنف(أصناف) نفدت من المخزون أو باقي منها قطعة واحدة فقط!
+        <a href="/low_stock_alert" class="alert-link">📋 اضغط هنا للمراجعة</a>
+    </div>
+    {% elif low_stock_count > 0 %}
+    <div class="alert-warning">
+        <span style="font-size: 24px;">📦 تنبيه</span><br>
+        هناك {{ low_stock_count }} صنف(أصناف) متبقٍ منها أقل من 5 قطع.
+        <a href="/shortages" class="alert-link">➕ اضغط لإضافة طلب شراء</a>
+    </div>
+    {% endif %}
 
     <div class="stats">
         <div class="stat-card">
@@ -133,19 +177,26 @@
         <a href="/search" class="nav-btn">
             <div class="icon">🔍</div>
             <span>بحث عن صنف</span>
-        
-</a>
-  <a href="/sales_list" class="nav-btn">
-    <div class="icon">📋</div>
-    <span>سجل المبيعات</span>
-</a>
-<a href="/returns_report" class="nav-btn">
-    <div class="icon">🔄</div>
-    <span>تقرير المرتجعات</span>
-</a>      
-<a href="/reports" class="nav-btn">
+        </a>
+        <a href="/sales_list" class="nav-btn">
+            <div class="icon">📋</div>
+            <span>سجل المبيعات</span>
+        </a>
+        <a href="/returns_report" class="nav-btn">
+            <div class="icon">🔄</div>
+            <span>تقرير المرتجعات</span>
+        </a>      
+        <a href="/reports" class="nav-btn">
             <div class="icon">📈</div>
             <span>التقارير</span>
+        </a>
+        <a href="/dashboard_stats" class="nav-btn">
+            <div class="icon">📊</div>
+            <span>إحصائيات متقدمة</span>
+        </a>
+        <a href="/low_stock_alert" class="nav-btn">
+            <div class="icon">🔔</div>
+            <span>تنبيهات المخزون</span>
         </a>
         <a href="/backup" class="nav-btn" onclick="alert('جاري إنشاء النسخة الاحتياطية...')">
             <div class="icon">💾</div>
