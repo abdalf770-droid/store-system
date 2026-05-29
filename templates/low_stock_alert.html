@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تنبيه المخزون - محل ابن الشيخ شتيه</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h2 { margin-bottom: 20px; text-align: center; }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .critical-box {
+            background: #dc3545;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .warning-box {
+            background: #ffc107;
+            color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #ddd; }
+        th { background: #667eea; color: white; }
+        .critical-row { background: #ffebee; }
+        .low-row { background: #fff3e0; }
+        .qty-zero { color: #dc3545; font-weight: bold; font-size: 20px; }
+        .qty-one { color: #ff9800; font-weight: bold; font-size: 18px; }
+        .action-btn {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        <h2>📢 تنبيهات المخزون</h2>
+        
+        {% if critical_items %}
+        <div class="critical-box">
+            <span style="font-size: 24px;">🚨 تنبيه عاجل 🚨</span><br>
+            الأصناف التالية نفدت أو باقي قطعة واحدة فقط!
+        </div>
+        
+        <table>
+            <thead>
+                <tr><th>الصنف</th><th>الكمية المتبقية</th><th>السعر الحالي</th><th>إجراء</th></tr>
+            </thead>
+            <tbody>
+                {% for item in critical_items %}
+                <tr class="critical-row">
+                    <td>{{ item.name }}</td>
+                    <td class="{% if item.quantity == 0 %}qty-zero{% else %}qty-one{% endif %}">
+                        {{ item.quantity }}
+                    </td>
+                    <td>{{ "%.2f"|format(item.current_price) }} ريال</td>
+                    <td><a href="/add_item" class="action-btn">➕ إضافة كميّة</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        
+        {% if low_items %}
+        <div class="warning-box">
+            📦 الأصناف التالية قاربت على النفاد (أقل من 5 قطع):
+        </div>
+        
+        <table>
+            <thead>
+                <tr><th>الصنف</th><th>الكمية المتبقية</th><th>السعر الحالي</th><th>إجراء</th></tr>
+            </thead>
+            <tbody>
+                {% for item in low_items %}
+                <tr class="low-row">
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ "%.2f"|format(item.current_price) }} ريال</td>
+                    <td><a href="/shortages" class="action-btn">📦 طلب شراء</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        
+        {% if not critical_items and not low_items %}
+        <div style="text-align: center; padding: 40px; color: #28a745; font-size: 18px;">
+            ✅ ممتاز! جميع الأصناف متوفرة بكميات جيدة
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
