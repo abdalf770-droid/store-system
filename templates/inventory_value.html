@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قيمة البضاعة - محل ابن الشيخ شتيه</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tahoma', Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .card-min { border-top: 5px solid #28a745; }
+        .card-avg { border-top: 5px solid #ffc107; }
+        .card-max { border-top: 5px solid #dc3545; }
+        .card-current { border-top: 5px solid #667eea; }
+        .card h3 { font-size: 16px; color: #666; margin-bottom: 10px; }
+        .card .value { font-size: 32px; font-weight: bold; }
+        .card-min .value { color: #28a745; }
+        .card-avg .value { color: #ff9800; }
+        .card-max .value { color: #dc3545; }
+        .card-current .value { color: #667eea; }
+        .card .note { font-size: 12px; color: #999; margin-top: 10px; }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .comparison-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+        }
+        .comparison-card h4 { margin-bottom: 10px; }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:hover { background: #f5f5f5; }
+        .qty { font-weight: bold; }
+        @media (max-width: 768px) {
+            th, td { font-size: 11px; padding: 8px; }
+            .value { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        
+        <h2 style="text-align: center; margin-bottom: 20px;">💰 قيمة البضاعة في المخزن</h2>
+        
+        <!-- البطاقات summary -->
+        <div class="summary-cards">
+            <div class="card card-min">
+                <h3>🟢 على أساس أقل سعر بيع</h3>
+                <div class="value">{{ "%.2f"|format(total_by_min) }} ريال</div>
+                <div class="note">لو بعت كل شيء بأقل سعر</div>
+            </div>
+            <div class="card card-avg">
+                <h3>🟡 على أساس متوسط سعر البيع</h3>
+                <div class="value">{{ "%.2f"|format(total_by_avg) }} ريال</div>
+                <div class="note">لو بعت كل شيء بالسعر المتوسط</div>
+            </div>
+            <div class="card card-max">
+                <h3>🔴 على أساس أعلى سعر بيع</h3>
+                <div class="value">{{ "%.2f"|format(total_by_max) }} ريال</div>
+                <div class="note">لو بعت كل شيء بأعلى سعر</div>
+            </div>
+            <div class="card card-current">
+                <h3>🔵 على أساس السعر الحالي</h3>
+                <div class="value">{{ "%.2f"|format(total_by_current) }} ريال</div>
+                <div class="note">سعر البيع الحالي في محلك</div>
+            </div>
+        </div>
+        
+        <!-- الفروقات -->
+        <div class="comparison">
+            <div class="comparison-card">
+                <h4>📉 الفرق بين السعر الحالي والأقل</h4>
+                {% if diff_min_current >= 0 %}
+                <div class="positive">+ {{ "%.2f"|format(diff_min_current) }} ريال</div>
+                <div class="positive">أعلى من أقل سعر بـ {{ "%.2f"|format(diff_min_current) }}</div>
+                {% else %}
+                <div class="negative">{{ "%.2f"|format(diff_min_current) }} ريال</div>
+                {% endif %}
+            </div>
+            <div class="comparison-card">
+                <h4>📊 الفرق بين السعر الحالي والمتوسط</h4>
+                {% if diff_avg_current >= 0 %}
+                <div class="positive">+ {{ "%.2f"|format(diff_avg_current) }} ريال</div>
+                {% else %}
+                <div class="negative">{{ "%.2f"|format(diff_avg_current) }} ريال</div>
+                {% endif %}
+            </div>
+            <div class="comparison-card">
+                <h4>📈 الفرق بين الأعلى والسعر الحالي</h4>
+                <div class="positive">+ {{ "%.2f"|format(diff_max_current) }} ريال</div>
+                <div>يمكنك رفع السعر لكسب هذا المبلغ</div>
+            </div>
+        </div>
+        
+        <!-- جدول تفاصيل الأصناف -->
+        <h3 style="margin: 20px 0 10px;">📋 تفاصيل الأصناف</h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>الصنف</th>
+                        <th>الكمية</th>
+                        <th>أقل سعر</th>
+                        <th>متوسط سعر</th>
+                        <th>أعلى سعر</th>
+                        <th>سعرك الحالي</th>
+                        <th>القيمة (بأقل سعر)</th>
+                        <th>القيمة (بالمتوسط)</th>
+                        <th>القيمة (بأعلى سعر)</th>
+                        <th>القيمة (بحالك)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td class="qty">{{ item.quantity }}</td>
+                        <td>{{ "%.0f"|format(item.min_selling_price) }}</td>
+                        <td>{{ "%.0f"|format(item.avg_selling_price) }}</td>
+                        <td>{{ "%.0f"|format(item.max_selling_price) }}</td>
+                        <td><strong>{{ "%.0f"|format(item.current_price) }}</strong></td>
+                        <td>{{ "%.0f"|format(item.quantity * item.min_selling_price) }}</td>
+                        <td>{{ "%.0f"|format(item.quantity * item.avg_selling_price) }}</td>
+                        <td>{{ "%.0f"|format(item.quantity * item.max_selling_price) }}</td>
+                        <td>{{ "%.0f"|format(item.quantity * item.current_price) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="background: #e7f3ff; padding: 15px; border-radius: 10px; margin-top: 20px;">
+            <h4>💡 ماذا تعني هذه الأرقام؟</h4>
+            <ul style="padding-right: 20px;">
+                <li><strong>أقل سعر بيع:</strong> الحد الأدنى الذي تبيعه (للعروض والتخفيضات)</li>
+                <li><strong>متوسط سعر البيع:</strong> السعر الطبيعي في السوق</li>
+                <li><strong>أعلى سعر بيع:</strong> الحد الأقصى للسعر (في المحلات الأخرى)</li>
+                <li><strong>سعرك الحالي:</strong> كم تبيع فعلاً في محلك</li>
+                <li>✅ كلما زاد الفرق بين سعرك الحالي والأعلى، زادت فرصة رفع السعر</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
