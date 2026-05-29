@@ -72,8 +72,7 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False):
         if fetch_one:
             if DATABASE_URL:
                 result = cursor.fetchone()
-                if result:
-                    result = dict(result)
+                result = dict(result) if result else None
             else:
                 result = cursor.fetchone()
             db.commit()
@@ -92,6 +91,9 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False):
     except Exception as e:
         db.rollback()
         print(f"⚠️ خطأ في الاستعلام: {e}")
+        print(f"⚠️ الاستعلام: {query}")
+        if params:
+            print(f"⚠️ المعاملات: {params}")
         raise e
 
 def init_db():
