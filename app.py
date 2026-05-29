@@ -101,7 +101,65 @@ def init_db():
     if DATABASE_URL:
         # PostgreSQL - إنشاء الجداول
         queries = [
-            # ... الجداول الموجودة عندك (users, items, invoices, ...) ...
+            # جدول المستخدمين
+            '''CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )''',
+            
+            # جدول الأصناف
+            '''CREATE TABLE IF NOT EXISTS items (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                purchase_price REAL NOT NULL,
+                min_selling_price REAL NOT NULL,
+                max_selling_price REAL NOT NULL,
+                avg_selling_price REAL NOT NULL,
+                current_price REAL NOT NULL,
+                quantity INTEGER NOT NULL
+            )''',
+            
+            # جدول الفواتير
+            '''CREATE TABLE IF NOT EXISTS invoices (
+                id SERIAL PRIMARY KEY,
+                date TEXT NOT NULL,
+                item_id INTEGER,
+                quantity_sold INTEGER,
+                selling_price REAL,
+                total REAL,
+                FOREIGN KEY (item_id) REFERENCES items (id)
+            )''',
+            
+            # جدول النسخ الاحتياطية
+            '''CREATE TABLE IF NOT EXISTS backups_log (
+                id SERIAL PRIMARY KEY,
+                backup_date TEXT NOT NULL,
+                backup_type TEXT NOT NULL,
+                file_path TEXT NOT NULL
+            )''',
+            
+            # جدول طلبات الشراء
+            '''CREATE TABLE IF NOT EXISTS purchase_orders (
+                id SERIAL PRIMARY KEY,
+                item_name TEXT NOT NULL,
+                required_quantity INTEGER NOT NULL,
+                priority TEXT DEFAULT 'متوسط',
+                status TEXT DEFAULT 'مطلوب',
+                date_requested TEXT NOT NULL,
+                notes TEXT
+            )''',
+            
+            # جدول المرتجعات
+            '''CREATE TABLE IF NOT EXISTS returns_log (
+                id SERIAL PRIMARY KEY,
+                sale_id INTEGER,
+                item_name TEXT,
+                return_quantity INTEGER,
+                return_amount REAL,
+                reason TEXT,
+                return_date TEXT
+            )''',
             
             # ========== الجداول الجديدة ==========
             '''CREATE TABLE IF NOT EXISTS permissions (
@@ -154,9 +212,74 @@ def init_db():
         with sqlite3.connect(DB_NAME) as conn:
             conn.row_factory = sqlite3.Row
             
-            # ... الجداول الموجودة عندك ...
+            # الجداول الموجودة
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL
+                )
+            ''')
             
-            # ========== الجداول الجديدة لـ SQLite ==========
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    purchase_price REAL NOT NULL,
+                    min_selling_price REAL NOT NULL,
+                    max_selling_price REAL NOT NULL,
+                    avg_selling_price REAL NOT NULL,
+                    current_price REAL NOT NULL,
+                    quantity INTEGER NOT NULL
+                )
+            ''')
+            
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    item_id INTEGER,
+                    quantity_sold INTEGER,
+                    selling_price REAL,
+                    total REAL,
+                    FOREIGN KEY (item_id) REFERENCES items (id)
+                )
+            ''')
+            
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS backups_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    backup_date TEXT NOT NULL,
+                    backup_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL
+                )
+            ''')
+            
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS purchase_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    item_name TEXT NOT NULL,
+                    required_quantity INTEGER NOT NULL,
+                    priority TEXT DEFAULT 'متوسط',
+                    status TEXT DEFAULT 'مطلوب',
+                    date_requested TEXT NOT NULL,
+                    notes TEXT
+                )
+            ''')
+            
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS returns_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sale_id INTEGER,
+                    item_name TEXT,
+                    return_quantity INTEGER,
+                    return_amount REAL,
+                    reason TEXT,
+                    return_date TEXT
+                )
+            ''')
+            
+            # الجداول الجديدة لـ SQLite
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS permissions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,6 +315,7 @@ def init_db():
             conn.execute("INSERT OR IGNORE INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) VALUES ('موظف', 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0)")
             conn.execute("INSERT OR IGNORE INTO permissions (role, can_sales, can_add_items, can_edit_items, can_delete_items, can_inventory, can_shortages, can_reports, can_sales_list, can_returns, can_manage_users, can_view_logs) VALUES ('مراقب', 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0)")
             
+            conn.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('admin', 'admin123')")
             conn.commit()
     
     print("✅ قاعدة البيانات جاهزة!")
