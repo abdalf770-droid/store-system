@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import datetime
 import os
 import pg8000
-from pg8000 import DBAPI
+import urllib.parse as urlparse
 
 app = Flask(__name__)
 app.secret_key = 'ibn_al_shaykh_secret_key_2024'
@@ -14,7 +14,6 @@ def get_db_connection():
     """إنشاء اتصال بقاعدة البيانات باستخدام pg8000"""
     try:
         # تحليل رابط قاعدة البيانات
-        import urllib.parse as urlparse
         url = urlparse.urlparse(DATABASE_URL)
         
         conn = pg8000.connect(
@@ -25,57 +24,72 @@ def get_db_connection():
             password=url.password,
             ssl_context=True  # تفعيل SSL
         )
+        print("✅ تم الاتصال بقاعدة البيانات بنجاح!")
         return conn
     except Exception as e:
-        print(f"❌ خطأ في الاتصال: {e}")
+        print(f"❌ خطأ في الاتصال بقاعدة البيانات: {e}")
         return None
 
 def init_db():
-    """تهيئة قاعدة البيانات"""
+    """تهيئة قاعدة البيانات - إنشاء الجداول إذا لم تكن موجودة"""
     conn = get_db_connection()
-    if conn:
-        cursor = conn.cursor()
+    if not conn:
+        print("❌ فشل الاتصال بقاعدة البيانات، لا يمكن التهيئة")
+        return
+    
+    cursor = conn.cursor()
+    
+    try:
+        # إنشاء جدول المستخدمين
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
+            )
+        """)
         
-        try:
-            # إنشاء جدول المستخدمين
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL
-                )
-            """)
-            
-            # إنشاء جدول الأصناف
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS items (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    purchase_price REAL NOT NULL,
-                    min_selling_price REAL NOT NULL,
-                    max_selling_price REAL NOT NULL,
-                    avg_selling_price REAL NOT NULL,
-                    current_price REAL NOT NULL,
-                    quantity INTEGER NOT NULL
-                )
-            """)
-            
-            # إضافة المستخدم الافتراضي
-            cursor.execute("SELECT * FROM users WHERE username = 'admin'")
-            if not cursor.fetchone():
-                cursor.execute("INSERT INTO users (username, password) VALUES ('admin', 'admin123')")
-            
-            conn.commit()
-            print("✅ تم تهيئة قاعدة البيانات بنجاح!")
-            
-        except Exception as e:
-            print(f"❌ خطأ في التهيئة: {e}")
-            conn.rollback()
-        finally:
-            cursor.close()
-            conn.close()
-    else:
-        print("❌ فشل الاتصال بقاعدة البيانات")
+        # إنشاء جدول الأصناف
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS items (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                purchase_price REAL NOT NULL,
+                min_selling_price REAL NOT NULL,
+                max_selling_price REAL NOT NULL,
+                avg_selling_price REAL NOT NULL,
+                current_price REAL NOT NULL,
+                quantity INTEGER NOT NULL
+            )
+        """)
+        
+        # إنشاء جدول الفواتير للمبيعات
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS invoices (
+                id SERIAL PRIMARY KEY,
+                date TEXT NOT NULL,
+                item_id INTEGER,
+                quantity_sold INTEGER,
+                selling_price REAL,
+                total REAL
+            )
+        """)
+        
+        # إضافة المستخدم الافتراضي إذا لم يكن موجوداً
+        cursor.execute("SELECT * FROM users WHERE username = 'admin'")
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO users (username, password) VALUES ('admin', 'admin123')")
+            print("✅ تم إضافة المستخدم الافتراضي (admin/admin123)")
+        
+        conn.commit()
+        print("✅ تم تهيئة قاعدة البيانات وجميع الجداول بنجاح!")
+        
+    except Exception as e:
+        print(f"❌ خطأ في تهيئة قاعدة البيانات: {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/')
 def login():
@@ -87,21 +101,21 @@ def do_login():
     password = request.form['password']
     
     conn = get_db_connection()
-    if conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
-            user = cursor.fetchone()
-            if user:
-                session['user'] = username
-                return redirect(url_for('dashboard'))
-            else:
-                return render_template('login.html', error="بيانات الدخول غير صحيحة")
-        finally:
-            cursor.close()
-            conn.close()
+    if not conn:
+        return render_template('login.html', error="خطأ في الاتصال بقاعدة البيانات")
     
-    return render_template('login.html', error="خطأ في الاتصال بقاعدة البيانات")
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
+        user = cursor.fetchone()
+        if user:
+            session['user'] = username
+            return redirect(url_for('dashboard'))
+        else:
+            return render_template('login.html', error="بيانات الدخول غير صحيحة")
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/dashboard')
 def dashboard():
@@ -169,37 +183,37 @@ def add_item():
     if request.method == 'POST':
         try:
             data = request.form
-            print(f"📝 إضافة صنف: {data['name']}")
+            print(f"📝 إضافة صنف جديد: {data['name']}")
             
             conn = get_db_connection()
-            if conn:
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("""
-                        INSERT INTO items (name, purchase_price, min_selling_price, 
-                                          max_selling_price, avg_selling_price, 
-                                          current_price, quantity) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (data['name'], float(data['purchase_price']), float(data['min_price']),
-                          float(data['max_price']), float(data['avg_price']), 
-                          float(data['current_price']), int(data['quantity'])))
-                    
-                    conn.commit()
-                    print(f"✅ تم حفظ الصنف في قاعدة البيانات!")
-                    return redirect(url_for('inventory'))
-                except Exception as e:
-                    conn.rollback()
-                    print(f"❌ خطأ في الحفظ: {e}")
-                    return render_template('add_item.html', error=f"خطأ في الحفظ: {e}")
-                finally:
-                    cursor.close()
-                    conn.close()
-            else:
-                print("❌ لا يمكن الاتصال بقاعدة البيانات")
+            if not conn:
                 return render_template('add_item.html', error="لا يمكن الاتصال بقاعدة البيانات")
+            
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO items (name, purchase_price, min_selling_price, 
+                                      max_selling_price, avg_selling_price, 
+                                      current_price, quantity) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (data['name'], float(data['purchase_price']), float(data['min_price']),
+                      float(data['max_price']), float(data['avg_price']), 
+                      float(data['current_price']), int(data['quantity'])))
+                
+                conn.commit()
+                print(f"✅ تم حفظ الصنف '{data['name']}' في قاعدة البيانات!")
+                return redirect(url_for('inventory'))
+                
+            except Exception as e:
+                conn.rollback()
+                print(f"❌ خطأ في حفظ البيانات: {e}")
+                return render_template('add_item.html', error=f"خطأ في الحفظ: {e}")
+            finally:
+                cursor.close()
+                conn.close()
                 
         except Exception as e:
-            print(f"❌ خطأ: {e}")
+            print(f"❌ خطأ عام: {e}")
             return render_template('add_item.html', error=f"خطأ: {e}")
     
     return render_template('add_item.html')
@@ -209,15 +223,12 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
-# تهيئة قاعدة البيانات عند بدء التشغيل
-print("🚀 بدء تشغيل التطبيق...")
+# تشغيل تهيئة قاعدة البيانات عند بدء التشغيل
+print("=" * 50)
+print("🚀 بدء تشغيل نظام إدارة المخزون")
+print("=" * 50)
 init_db()
 
 if __name__ == '__main__':
-    print("=" * 50)
-    print("🚀 تشغيل النظام...")
-    print(f"🗄️  قاعدة البيانات: PostgreSQL")
-    print(f"📱 http://127.0.0.1:5000")
-    print(f"👤 admin / admin123")
-    print("=" * 50)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
