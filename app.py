@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import datetime
 import os
-import pg8000
-import urllib.parse as urlparse
+import asyncpg
+import asyncio
 
 app = Flask(__name__)
 app.secret_key = 'ibn_al_shaykh_secret_key_2024'
@@ -10,38 +10,35 @@ app.secret_key = 'ibn_al_shaykh_secret_key_2024'
 # رابط قاعدة البيانات
 DATABASE_URL = "postgresql://store_db_new_user:SP6AhmF93Es2GTFfMF3h8Huh8jzrMkru@dpg-d8d0kl6gvqtc73dvpb0g-a/store_db_new"
 
-def get_db_connection():
-    """إنشاء اتصال بقاعدة البيانات باستخدام pg8000"""
+def run_async(coro):
+    """تشغيل دوال غير متزامنة في Flask"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        # تحليل رابط قاعدة البيانات
-        url = urlparse.urlparse(DATABASE_URL)
-        
-        conn = pg8000.connect(
-            host=url.hostname,
-            port=url.port or 5432,
-            database=url.path[1:],
-            user=url.username,
-            password=url.password,
-            ssl_context=True  # تفعيل SSL
-        )
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+async def get_db_connection():
+    """إنشاء اتصال بقاعدة البيانات"""
+    try:
+        conn = await asyncpg.connect(DATABASE_URL.replace('postgresql://', 'postgres://') + '?sslmode=require')
         print("✅ تم الاتصال بقاعدة البيانات بنجاح!")
         return conn
     except Exception as e:
         print(f"❌ خطأ في الاتصال بقاعدة البيانات: {e}")
         return None
 
-def init_db():
-    """تهيئة قاعدة البيانات - إنشاء الجداول إذا لم تكن موجودة"""
-    conn = get_db_connection()
+async def init_db_async():
+    """تهيئة قاعدة البيانات (غير متزامن)"""
+    conn = await get_db_connection()
     if not conn:
         print("❌ فشل الاتصال بقاعدة البيانات، لا يمكن التهيئة")
         return
     
-    cursor = conn.cursor()
-    
     try:
         # إنشاء جدول المستخدمين
-        cursor.execute("""
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
@@ -50,7 +47,7 @@ def init_db():
         """)
         
         # إنشاء جدول الأصناف
-        cursor.execute("""
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS items (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -63,33 +60,22 @@ def init_db():
             )
         """)
         
-        # إنشاء جدول الفواتير للمبيعات
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS invoices (
-                id SERIAL PRIMARY KEY,
-                date TEXT NOT NULL,
-                item_id INTEGER,
-                quantity_sold INTEGER,
-                selling_price REAL,
-                total REAL
-            )
-        """)
-        
         # إضافة المستخدم الافتراضي إذا لم يكن موجوداً
-        cursor.execute("SELECT * FROM users WHERE username = 'admin'")
-        if not cursor.fetchone():
-            cursor.execute("INSERT INTO users (username, password) VALUES ('admin', 'admin123')")
+        user_exists = await conn.fetchval("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        if user_exists == 0:
+            await conn.execute("INSERT INTO users (username, password) VALUES ('admin', 'admin123')")
             print("✅ تم إضافة المستخدم الافتراضي (admin/admin123)")
         
-        conn.commit()
         print("✅ تم تهيئة قاعدة البيانات وجميع الجداول بنجاح!")
         
     except Exception as e:
         print(f"❌ خطأ في تهيئة قاعدة البيانات: {e}")
-        conn.rollback()
     finally:
-        cursor.close()
-        conn.close()
+        await conn.close()
+
+def init_db():
+    """تهيئة قاعدة البيانات (بواجهة متزامنة)"""
+    run_async(init_db_async())
 
 @app.route('/')
 def login():
@@ -100,50 +86,39 @@ def do_login():
     username = request.form['username']
     password = request.form['password']
     
-    conn = get_db_connection()
-    if not conn:
-        return render_template('login.html', error="خطأ في الاتصال بقاعدة البيانات")
+    async def check_user():
+        conn = await get_db_connection()
+        if not conn:
+            return None
+        try:
+            row = await conn.fetchrow("SELECT * FROM users WHERE username = $1 AND password = $2", username, password)
+            return row
+        finally:
+            await conn.close()
     
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
-        user = cursor.fetchone()
-        if user:
-            session['user'] = username
-            return redirect(url_for('dashboard'))
-        else:
-            return render_template('login.html', error="بيانات الدخول غير صحيحة")
-    finally:
-        cursor.close()
-        conn.close()
+    user = run_async(check_user())
+    if user:
+        session['user'] = username
+        return redirect(url_for('dashboard'))
+    else:
+        return render_template('login.html', error="بيانات الدخول غير صحيحة")
 
 @app.route('/dashboard')
 def dashboard():
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    conn = get_db_connection()
-    items = []
-    if conn:
-        cursor = conn.cursor()
+    async def get_items():
+        conn = await get_db_connection()
+        if not conn:
+            return []
         try:
-            cursor.execute("SELECT * FROM items ORDER BY id")
-            rows = cursor.fetchall()
-            for row in rows:
-                items.append({
-                    'id': row[0],
-                    'name': row[1],
-                    'purchase_price': row[2],
-                    'min_selling_price': row[3],
-                    'max_selling_price': row[4],
-                    'avg_selling_price': row[5],
-                    'current_price': row[6],
-                    'quantity': row[7]
-                })
+            rows = await conn.fetch("SELECT * FROM items ORDER BY id")
+            return [dict(row) for row in rows]
         finally:
-            cursor.close()
-            conn.close()
+            await conn.close()
     
+    items = run_async(get_items())
     return render_template('dashboard.html', items=items)
 
 @app.route('/inventory')
@@ -151,28 +126,17 @@ def inventory():
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    conn = get_db_connection()
-    items = []
-    if conn:
-        cursor = conn.cursor()
+    async def get_items():
+        conn = await get_db_connection()
+        if not conn:
+            return []
         try:
-            cursor.execute("SELECT * FROM items ORDER BY id")
-            rows = cursor.fetchall()
-            for row in rows:
-                items.append({
-                    'id': row[0],
-                    'name': row[1],
-                    'purchase_price': row[2],
-                    'min_selling_price': row[3],
-                    'max_selling_price': row[4],
-                    'avg_selling_price': row[5],
-                    'current_price': row[6],
-                    'quantity': row[7]
-                })
+            rows = await conn.fetch("SELECT * FROM items ORDER BY id")
+            return [dict(row) for row in rows]
         finally:
-            cursor.close()
-            conn.close()
+            await conn.close()
     
+    items = run_async(get_items())
     return render_template('inventory.html', items=items)
 
 @app.route('/add_item', methods=['GET', 'POST'])
@@ -181,40 +145,35 @@ def add_item():
         return redirect(url_for('login'))
     
     if request.method == 'POST':
-        try:
-            data = request.form
-            print(f"📝 إضافة صنف جديد: {data['name']}")
-            
-            conn = get_db_connection()
+        data = request.form
+        print(f"📝 إضافة صنف: {data['name']}")
+        
+        async def add_item_async():
+            conn = await get_db_connection()
             if not conn:
-                return render_template('add_item.html', error="لا يمكن الاتصال بقاعدة البيانات")
-            
-            cursor = conn.cursor()
+                return False
             try:
-                cursor.execute("""
+                await conn.execute("""
                     INSERT INTO items (name, purchase_price, min_selling_price, 
                                       max_selling_price, avg_selling_price, 
                                       current_price, quantity) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (data['name'], float(data['purchase_price']), float(data['min_price']),
-                      float(data['max_price']), float(data['avg_price']), 
-                      float(data['current_price']), int(data['quantity'])))
-                
-                conn.commit()
-                print(f"✅ تم حفظ الصنف '{data['name']}' في قاعدة البيانات!")
-                return redirect(url_for('inventory'))
-                
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                """, data['name'], float(data['purchase_price']), float(data['min_price']),
+                    float(data['max_price']), float(data['avg_price']), 
+                    float(data['current_price']), int(data['quantity']))
+                return True
             except Exception as e:
-                conn.rollback()
-                print(f"❌ خطأ في حفظ البيانات: {e}")
-                return render_template('add_item.html', error=f"خطأ في الحفظ: {e}")
+                print(f"❌ خطأ في الحفظ: {e}")
+                return False
             finally:
-                cursor.close()
-                conn.close()
-                
-        except Exception as e:
-            print(f"❌ خطأ عام: {e}")
-            return render_template('add_item.html', error=f"خطأ: {e}")
+                await conn.close()
+        
+        success = run_async(add_item_async())
+        if success:
+            print(f"✅ تم حفظ الصنف '{data['name']}' في قاعدة البيانات!")
+            return redirect(url_for('inventory'))
+        else:
+            return render_template('add_item.html', error="فشل حفظ البيانات في قاعدة البيانات")
     
     return render_template('add_item.html')
 
@@ -223,7 +182,7 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
-# تشغيل تهيئة قاعدة البيانات عند بدء التشغيل
+# تهيئة قاعدة البيانات عند بدء التشغيل
 print("=" * 50)
 print("🚀 بدء تشغيل نظام إدارة المخزون")
 print("=" * 50)
