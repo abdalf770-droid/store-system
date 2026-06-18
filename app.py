@@ -13,7 +13,7 @@ app.secret_key = 'ibn_al_shaykh_secret_key_2024'
 # ============================================================
 
 # رابط قاعدة البيانات الذي أعطيتني إياه
-DATABASE_URL = "postgresql://store_db_new_user:SP6AhmF93Es2GTFfMF3h8Huh8jzrMkru@dpg-d8d0kl6gvqtc73dvpb0g-a.oregon-postgres.render.com/store_db_new"
+DATABASE_URL = "postgresql://neondb_owner:npg_vfJNHbol5Z2k@ep-raspy-block-adco8epn-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
 def get_db():
     """إرجاع اتصال بقاعدة البيانات PostgreSQL"""
