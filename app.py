@@ -289,8 +289,7 @@ def dashboard_stats():
     today_revenue = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE %s',
                                   (today + '%',), fetch_one=True)['total']
     
-    # التعديل هنا: تم إضافة ::timestamp بعد حقل date ليتحول تلقائياً أثناء المقارنة
-    # التعديل هنا: إضافة ::timestamp داخل الاستعلام ليتوافق مع العمود النصي الحالي
+    # التعديل هنا: تحويل النص تلقائياً إلى تاريخ وقت المقارنة فقط للأيام السبعة
     weekly_activity = execute_query('''
         SELECT DATE(date::timestamp) as day, COUNT(*) as invoices, SUM(total) as revenue
         FROM invoices 
@@ -298,7 +297,6 @@ def dashboard_stats():
         GROUP BY DATE(date::timestamp)
         ORDER BY day DESC
     ''', fetch_all=True)
-
     
     top_items = execute_query('''
         SELECT 
@@ -346,6 +344,7 @@ def dashboard_stats():
                          total_items=total_items,
                          out_of_stock=out_of_stock,
                          low_stock=low_stock)
+
 
 
 @app.route('/shortages', methods=['GET', 'POST'])
