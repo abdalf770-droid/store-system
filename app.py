@@ -289,11 +289,12 @@ def dashboard_stats():
     today_revenue = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE %s',
                                   (today + '%',), fetch_one=True)['total']
     
+    # التعديل هنا: تم إضافة ::timestamp بعد حقل date ليتحول تلقائياً أثناء المقارنة
     weekly_activity = execute_query('''
-        SELECT DATE(date) as day, COUNT(*) as invoices, SUM(total) as revenue
+        SELECT DATE(date::timestamp) as day, COUNT(*) as invoices, SUM(total) as revenue
         FROM invoices 
-        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
-        GROUP BY DATE(date)
+        WHERE date::timestamp >= CURRENT_DATE - INTERVAL '7 days'
+        GROUP BY DATE(date::timestamp)
         ORDER BY day DESC
     ''', fetch_all=True)
     
@@ -343,6 +344,7 @@ def dashboard_stats():
                          total_items=total_items,
                          out_of_stock=out_of_stock,
                          low_stock=low_stock)
+
 
 @app.route('/shortages', methods=['GET', 'POST'])
 def shortages():
