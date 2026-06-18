@@ -290,6 +290,7 @@ def dashboard_stats():
                                   (today + '%',), fetch_one=True)['total']
     
     # التعديل هنا: تم إضافة ::timestamp بعد حقل date ليتحول تلقائياً أثناء المقارنة
+    # التعديل هنا: إضافة ::timestamp داخل الاستعلام ليتوافق مع العمود النصي الحالي
     weekly_activity = execute_query('''
         SELECT DATE(date::timestamp) as day, COUNT(*) as invoices, SUM(total) as revenue
         FROM invoices 
@@ -297,6 +298,7 @@ def dashboard_stats():
         GROUP BY DATE(date::timestamp)
         ORDER BY day DESC
     ''', fetch_all=True)
+
     
     top_items = execute_query('''
         SELECT 
