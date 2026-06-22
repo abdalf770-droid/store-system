@@ -1,0 +1,16 @@
+{
+  "short_name": "نظام ابن الشيخ",
+  "name": "نظام إدارة محل ابن الشيخ التجاري",
+  "icons": [
+    {
+      "src": "/static/images/icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/dashboard",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "display": "standalone",
+  "orientation": "portrait"
+}
