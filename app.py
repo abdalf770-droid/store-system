@@ -181,7 +181,9 @@ with app.app_context():
 # ============================================================
 # المسارات (Routes)
 # ============================================================
-
+@app.route('/service-worker.js')
+def service_worker():
+    return app.send_static_file('service-worker.js') # أو اسم الملف مباشرة
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
