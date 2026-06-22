@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الصندوق والخزينة - محل ابن الشيخ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Tahoma', Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 15px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card h3 { color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 5px; }
+        .boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center; border-top: 5px solid #667eea; }
+        .box h4 { color: #666; font-size: 14px; margin-bottom: 5px; }
+        .box p { font-size: 28px; font-weight: bold; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; }
+        input, select, textarea { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 15px; font-family: inherit; }
+        input:focus, select:focus, textarea:focus { border-color: #667eea; outline: none; }
+        button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #218838; }
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 600px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: right; }
+        th { background: #f8f9fa; color: #555; font-weight: bold; }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; }
+        .badge-in { background: #e6f4ea; color: #137333; }
+        .badge-out { background: #fce8e6; color: #c5221f; }
+        
+        /* تنسيق نظام الإشعارات اليومية للمخصص */
+        .debt-alert-bar {
+            background: #fff0f0;
+            border: 2px dashed #dc3545;
+            color: #c5221f;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            animation: pulse 2s infinite;
+        }
+        .debt-success-bar {
+            background: #e6f4ea;
+            border: 2px solid #137333;
+            color: #137333;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 16px;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.01); }
+            100% { transform: scale(1); }
+        }
+        @media (max-width: 992px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
+        
+        <!-- نظام الإشعارات والتنبيه التلقائي للـ 1000 ريال مخصص الديون اليومي -->
+        {% if alert_debt %}
+        <div class="debt-alert-bar">
+            ⚠️ تنبيه مالي هام: لم يتم تسجيل مخصص "سداد الديون اليومي" (1,000 ريال) ليومنا هذا حتى الآن! يرجى عزل المبلغ وتسجيله في الخزنة فوراً.
+        </div>
+        {% else %}
+        <div class="debt-success-bar">
+            ✅ كفو! تم إخراج وتأمين مخصص الديون اليومي بنجاح. استمر على هذا الالتزام المالي الممتاز لحماية المحل!
+        </div>
+        {% endif %}
+        
+        <!-- صناديق رأس المال والتدفق النقدي المتوفر والمستقطع -->
+        <div class="boxes">
+            <div class="box" style="border-top-color: #28a745; background: #f0fff4;">
+                <h4>💵 الكاش المتوفر بالدرج حالياً</h4>
+                <p>{{ "%.2f"|format(safe_balance) }} ريال</p>
+            </div>
+            <div class="box" style="border-top-color: #dc3545; background: #fff5f5;">
+                <h4>💸 إجمالي المستقطع للديون ({{ (debt_paid / 1000)|int }} أيام)</h4>
+                <p>{{ "%.0f"|format(debt_paid) }} ريال</p>
+            </div>
+            <div class="box">
+                <h4>🛍️ إجمالي المبيعات التراكمي</h4>
+                <p>{{ "%.0f"|format(total_sales) }} ريال</p>
+            </div>
+            <div class="box" style="border-top-color: #ff9800;">
+                <h4>📉 إجمالي المصاريف والمشتروات الصافية</h4>
+                <p>{{ "%.0f"|format(total_out - debt_paid) }} ريال</p>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- فورم إضافة حركة مالية جديدة (المدخلات والمخرجات) -->
+            <div class="card">
+                <h3>📝 تسجيل حركة مالية جديدة</h3>
+                <form method="post" style="margin-top: 15px;">
+                    <div class="form-group">
+                        <label>نوع العملية المالية:</label>
+                        <select name="type" required>
+                            <option value="OUT">❌ إخراج مبالغ (مصروفات / مسحوبات / مشتريات)</option>
+                            <option value="IN">📥 إدخال مبالغ (رأس مال إضافي / ديون مستردة)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الفئة التصنيفية للعملية:</label>
+                        <select name="category" required>
+                            <option value="سداد ديون">🤝 سداد ديون ومستحقات (الـ 1000 اليومي)</option>
+                            <option value="مشتريات بضاعة">📦 مشتريات بضاعة جديدة للمحل</option>
+                            <option value="مسحوبات شخصية">👤 مسحوبات شخصية (شركاء / إخوة / الـ 30 ألف)</option>
+                            <option value="مصاريف تشغيلية">⚡ مصاريف المحل (كهرباء / إيجار / أكياس تجارية)</option>
+                            <option value="أخرى">🔹 عمليات أخرى متنوعة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>المبلغ المالي المخصص (بالريال):</label>
+                        <input type="number" name="amount" step="0.01" required placeholder="0.00" min="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الفاتورة الخارجية المرفقة (إن وجد):</label>
+                        <input type="text" name="invoice_number" placeholder="مثال: فاتورة شركة رقم 8820">
+                    </div>
+                    <div class="form-group">
+                        <label>البيان والتفاصيل (ملاحظات توضيحية):</label>
+                        <textarea name="notes" rows="4" placeholder="اكتب بياناً واضحاً للعملية (مثال: تسديد قسط الديون، مصروف كهرباء شهر يونيو...)"></textarea>
+                    </div>
+                    <button type="submit">💾 حفظ الحركة المالية بالخزينة</button>
+                </form>
+            </div>
+
+            <!-- سجل تفصيلي شامل لحركة الأموال داخل الخزنة -->
+            <div class="card">
+                <h3>📋 سجل حركة الأموال ومراقبة الخزنة</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ والوقت</th>
+                                <th>نوع العملية</th>
+                                <th>الفئة</th>
+                                <th>المبلغ</th>
+                                <th>رقم الفاتورة</th>
+                                <th>البيان والملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                            <tr>
+                                <td style="white-space: nowrap; font-size: 13px;">{{ tx['date'][:16] }}</td>
+                                <td>
+                                    <span class="badge {% if tx['type'] == 'IN' %}badge-in{% else %}badge-out{% endif %}">
+                                        {{ 'إدخال مالي 📥' if tx['type'] == 'IN' else 'إخراج كاش ❌' }}
+                                    </span>
+                                </td>
+                                <td><strong>{{ tx['category'] }}</strong></td>
+                                <td style="font-weight: bold; color: {% if tx['type'] == 'IN' %}#137333{% else %:#c5221f{% endif %};">
+                                    {{ "%.2f"|format(tx['amount']) }} ريال
+                                </td>
+                                <td>{{ tx['invoice_number'] or '-' }}</td>
+                                <td style="color: #555; font-size: 13px; max-width: 250px; word-wrap: break-word;">{{ tx['notes'] or '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" style="text-align: center; color: #999; padding: 30px;">لا توجد حركات مالية مسجلة في الخزينة بعد</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
