@@ -52,12 +52,14 @@
         .stat-label {
             text-align: center;
             color: #666;
+            margin-bottom: 10px;
         }
         .activity-item {
             display: flex;
             justify-content: space-between;
             padding: 8px;
             border-bottom: 1px solid #eee;
+            font-size: 13px;
         }
         .top-item {
             display: flex;
@@ -110,27 +112,39 @@
         <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
         
         <div class="stats-grid">
-            <!-- 1. حركة المرور اليومية -->
+            <!-- 1. حركة المرور اليومية والأرباح المحدثة لشهر كامل -->
             <div class="card">
                 <h3>🚶 حركة المرور اليوم</h3>
                 <div class="stat-number">{{ today_sales_count }}</div>
                 <div class="stat-label">عدد الفواتير اليوم</div>
+                
                 <div class="stat-number">{{ today_items_sold }}</div>
                 <div class="stat-label">قطعة مباعة</div>
-                <div class="stat-number">{{ "%.2f"|format(today_revenue) }} ريال</div>
-                <div class="stat-label">إيرادات اليوم</div>
                 
-                <h3 style="margin-top: 20px;">📅 آخر 7 أيام</h3>
+                <div class="stat-number">{{ "%.2f"|format(today_revenue) }} ريال</div>
+                <div class="stat-label">إيرادات اليوم (المبيعات)</div>
+
+                <!-- إضافة أرباح اليوم الصافية بلون أخضر مريح -->
+                <div class="stat-number" style="color: #28a745;">{{ "%.2f"|format(today_profit) }} ريال</div>
+                <div class="stat-label" style="color: #28a745; font-weight: bold;">صافي أرباح مبيعات اليوم</div>
+                
+                <!-- تحويل العرض إلى آخر 30 يوماً بالتفصيل المطلوب -->
+                <h3 style="margin-top: 25px;">📅 آخر 30 يوماً</h3>
+                <div class="activity-item" style="background: #eee; font-weight: bold;">
+                    <span style="width: 30%;">اليوم</span>
+                    <span style="width: 35%; text-align: center;">البيع</span>
+                    <span style="width: 35%; text-align: left;">الربح الصافي</span>
+                </div>
                 {% for activity in weekly_activity %}
                 <div class="activity-item">
-                    <span>{{ activity.day[:10] }}</span>
-                    <span>{{ activity.invoices }} فاتورة</span>
-                    <span>{{ "%.0f"|format(activity.revenue) }} ريال</span>
+                    <span style="width: 30%;">{{ activity.day[:10] }}</span>
+                    <span style="width: 35%; text-align: center; color: #333;">{{ "%.0f"|format(activity.revenue) }} ريال</span>
+                    <span style="width: 35%; text-align: left; color: #28a745; font-weight: bold;">{{ "%.0f"|format(activity.profit) }} ريال</span>
                 </div>
                 {% endfor %}
             </div>
             
-            <!-- 2. أكثر الأصناف مبيعاً -->
+            <!-- 2. أكثر الأصناف مبيعاً شاملة حساب الربح من الصنف -->
             <div class="card">
                 <h3>🏆 أكثر الأصناف مبيعاً</h3>
                 {% for item in top_items %}
@@ -139,8 +153,9 @@
                     <div class="name">{{ item.name }}</div>
                     <div class="sold">{{ item.total_sold }} قطعة</div>
                 </div>
+                <!-- تعديل السطر لعرض أرباح الصنف الصافية إلى جانب البيانات السابقة -->
                 <div style="font-size: 12px; color: #666; padding-right: 45px; margin-top: -5px; margin-bottom: 5px;">
-                    إيرادات: {{ "%.0f"|format(item.revenue) }} ريال | متبقي: {{ item.current_stock }}
+                    إيراد: {{ "%.0f"|format(item.revenue) }} ريال | <span style="color: #28a745; font-weight: bold;">ربح الصنف: {{ "%.0f"|format(item.item_profit) }} ريال</span> | متبقي: {{ item.current_stock }}
                 </div>
                 {% else %}
                 <div style="text-align: center; color: #999;">لا توجد مبيعات بعد</div>
@@ -201,10 +216,6 @@
                 <ul style="padding-right: 20px;">
                     <li>✅ الأصناف التي نفدت: {{ out_of_stock }}</li>
                     <li>⚠️ الأصناف المنخفضة (أقل من 5): {{ low_stock }}</li>
-                    <li>📦 إجمالي الأصناف في المحل: {{ total_items }}</li>
-                    {% if out_of_stock > 0 %}
-                    <li style="color: #dc3545;">🔔 يرجى طلب الأصناف النافدة فوراً!</li>
-                    {% endif %}
                 </ul>
             </div>
         </div>
