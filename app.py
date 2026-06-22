@@ -277,33 +277,33 @@ def low_stock_alert():
 
 @app.route('/dashboard_stats')
 def dashboard_stats():
-    """إحصائيات متقدمة لوحة التحكم - نسخة معدلة متوافقة مع PostgreSQL Neon"""
+    """إحصائيات متقدمة لوحة التحكم - نسخة مخصصة لنوع البيانات TEXT و FLOAT4"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # 1. جلب تاريخ اليوم بصيغة صحيحة لقاعدة البيانات
-    today = datetime.now().date()
+    # جلب تواريخ اليوم والأيام السابقة كأعداد نصوص للمقارنة الآمنة
+    today_str = datetime.now().strftime('%Y-%m-%d')
     
-    # حساب مبيعات اليوم وفواتير اليوم بطريقة متوافقة مع التواريخ
-    today_sales_count = execute_query('SELECT COUNT(*) as count FROM invoices WHERE DATE(date) = %s', 
-                                      (today,), fetch_one=True)['count']
+    # 1. إحصائيات اليوم (مقارنة نصية آمنة ومقاومة للـ NULL)
+    today_sales_count = execute_query("SELECT COUNT(*) as count FROM invoices WHERE COALESCE(date, '') LIKE %s", 
+                                      (today_str + '%',), fetch_one=True)['count']
     
-    today_items_sold = execute_query('SELECT COALESCE(SUM(quantity_sold), 0) as total FROM invoices WHERE DATE(date) = %s',
-                                     (today,), fetch_one=True)['total']
+    today_items_sold = execute_query("SELECT COALESCE(SUM(quantity_sold), 0) as total FROM invoices WHERE COALESCE(date, '') LIKE %s",
+                                     (today_str + '%',), fetch_one=True)['total']
     
-    today_revenue = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE DATE(date) = %s',
-                                  (today,), fetch_one=True)['total']
+    today_revenue = execute_query("SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE COALESCE(date, '') LIKE %s",
+                                  (today_str + '%',), fetch_one=True)['total']
     
-    # 2. تصحيح استعلام النشاط الأسبوعي المتوافق تماماً مع نيون
+    # 2. استعلام النشاط الأسبوعي (يستخرج أول 10 حروف من النص كمقارنة تاريخ دون تحويلات معقدة تنهر السيرفر)
     weekly_activity = execute_query('''
-        SELECT DATE(date) as day, COUNT(*) as invoices, SUM(total) as revenue
+        SELECT SUBSTRING(COALESCE(date, '') FROM 1 FOR 10) as day, COUNT(*) as invoices, SUM(COALESCE(total, 0)) as revenue
         FROM invoices 
-        WHERE date::date >= CURRENT_DATE - INTERVAL '7 days'
-        GROUP BY DATE(date)
+        WHERE date IS NOT NULL AND date <> '' AND SUBSTRING(date FROM 1 FOR 10) >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')
+        GROUP BY SUBSTRING(COALESCE(date, '') FROM 1 FOR 10)
         ORDER BY day DESC
     ''', fetch_all=True)
     
-    # 3. تصحيح استعلام أكثر المواد مبيعاً وإلغاء الـ CAST الزائد المسبب للمشاكل
+    # 3. استعلام أكثر المواد مبيعاً (متوافق مع دمج الجداول بدون CAST زائف)
     top_items = execute_query('''
         SELECT 
             items.name,
@@ -319,7 +319,7 @@ def dashboard_stats():
         LIMIT 10
     ''', fetch_all=True)
     
-    # 4. استعلام ترتيب المخزون (سليم ولا يحتاج تعديل كبير ولكنه مضاف للمزامنة)
+    # 4. استعلام المخزون وترتيب الكميات
     stock_ranking = execute_query('''
         SELECT 
             name,
@@ -327,7 +327,7 @@ def dashboard_stats():
             current_price,
             purchase_price,
             CASE 
-                WHEN quantity = 0 THEN 'نَفِد بالكامل'
+                WHEN quantity = 0 THEN 'نفد بالكامل'
                 WHEN quantity <= 2 THEN 'حرج جداً'
                 WHEN quantity <= 5 THEN 'منخفض'
                 WHEN quantity <= 10 THEN 'جيد'
@@ -351,6 +351,7 @@ def dashboard_stats():
                          total_items=total_items,
                          out_of_stock=out_of_stock,
                          low_stock=low_stock)
+
 
 
 @app.route('/shortages', methods=['GET', 'POST'])
