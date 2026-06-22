@@ -552,6 +552,56 @@ def edit_sale(sale_id):
     ''', (sale_id,), fetch_one=True)
     
     return render_template('edit_sale.html', sale=sale)
+@app.route('/cash_flow', methods=['GET', 'POST'])
+def cash_flow():
+    """إدارة الصندوق والخزينة - مع نظام التنبيه اليومي لمخصص الديون"""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    today_date_str = datetime.now().strftime('%Y-%m-%d')
+        
+    if request.method == 'POST':
+        type_op = request.form.get('type')
+        category = request.form.get('category')
+        amount = float(request.form.get('amount', 0))
+        invoice_num = request.form.get('invoice_number', '')
+        notes = request.form.get('notes', '')
+        today_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        execute_query('''
+            INSERT INTO cash_flow (date, type, category, amount, invoice_number, notes)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (today_now, type_op, category, amount, invoice_num, notes), commit=True)
+        return redirect(url_for('cash_flow'))
+
+    # جلب الحركات المادية
+    transactions = execute_query('SELECT * FROM cash_flow ORDER BY id DESC LIMIT 50', fetch_all=True)
+    
+    # فحص هل تم إخراج الـ 1000 ريال اليوم؟
+    today_debt_check = execute_query('''
+        SELECT COUNT(*) as count FROM cash_flow 
+        WHERE category = 'سداد ديون' AND COALESCE(date, '') LIKE %s
+    ''', (today_date_str + '%',), fetch_one=True)['count']
+    
+    # إذا كان الحساب صفر، يعني لم يتم الإخراج اليوم ونفعل التنبيه
+    alert_debt = True if today_debt_check == 0 else False
+
+    # حساب الإجماليات
+    total_sales = execute_query("SELECT COALESCE(SUM(total), 0) as total FROM invoices", fetch_one=True)['total']
+    total_in = execute_query("SELECT COALESCE(SUM(amount), 0) as total FROM cash_flow WHERE type = 'IN'", fetch_one=True)['total']
+    total_out = execute_query("SELECT COALESCE(SUM(amount), 0) as total FROM cash_flow WHERE type = 'OUT'", fetch_one=True)['total']
+    debt_paid = execute_query("SELECT COALESCE(SUM(amount), 0) as total FROM cash_flow WHERE category = 'سداد ديون'", fetch_one=True)['total']
+    
+    safe_balance = (total_sales + total_in) - total_out
+
+    return render_template('cash_flow.html', 
+                           transactions=transactions, 
+                           safe_balance=safe_balance,
+                           total_sales=total_sales,
+                           total_in=total_in,
+                           total_out=total_out,
+                           debt_paid=debt_paid,
+                           alert_debt=alert_debt) # إرسال متغير التنبيه للواجهة
 
 @app.route('/delete_sale/<int:sale_id>')
 def delete_sale(sale_id):
