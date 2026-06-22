@@ -121,14 +121,16 @@
                 <div class="stat-number">{{ today_items_sold }}</div>
                 <div class="stat-label">قطعة مباعة</div>
                 
-                <div class="stat-number">{{ "%.2f"|format(today_revenue) }} ريال</div>
+                <div class="stat-number">
+                    {% if today_revenue is number %}{{ "%.2f"|format(today_revenue) }}{% else %}{{ today_revenue }}{% endif %} ريال
+                </div>
                 <div class="stat-label">إيرادات اليوم (المبيعات)</div>
 
-                <!-- إضافة أرباح اليوم الصافية بلون أخضر مريح -->
-                <div class="stat-number" style="color: #28a745;">{{ "%.2f"|format(today_profit) }} ريال</div>
+                <div class="stat-number" style="color: #28a745;">
+                    {% if today_profit is number %}{{ "%.2f"|format(today_profit) }}{% else %}{{ today_profit }}{% endif %} ريال
+                </div>
                 <div class="stat-label" style="color: #28a745; font-weight: bold;">صافي أرباح مبيعات اليوم</div>
                 
-                <!-- تحويل العرض إلى آخر 30 يوماً بالتفصيل المطلوب -->
                 <h3 style="margin-top: 25px;">📅 آخر 30 يوماً</h3>
                 <div class="activity-item" style="background: #eee; font-weight: bold;">
                     <span style="width: 30%;">اليوم</span>
@@ -137,9 +139,13 @@
                 </div>
                 {% for activity in weekly_activity %}
                 <div class="activity-item">
-                    <span style="width: 30%;">{{ activity.day[:10] }}</span>
-                    <span style="width: 35%; text-align: center; color: #333;">{{ "%.0f"|format(activity.revenue) }} ريال</span>
-                    <span style="width: 35%; text-align: left; color: #28a745; font-weight: bold;">{{ "%.0f"|format(activity.profit) }} ريال</span>
+                    <span style="width: 30%;">{{ activity['day'][:10] }}</span>
+                    <span style="width: 35%; text-align: center; color: #333;">
+                        {% if activity['revenue'] is number %}{{ "%.0f"|format(activity['revenue']) }}{% else %}{{ activity['revenue'] }}{% endif %} ريال
+                    </span>
+                    <span style="width: 35%; text-align: left; color: #28a745; font-weight: bold;">
+                        {% if activity['profit'] is number %}{{ "%.0f"|format(activity['profit']) }}{% else %}{{ activity['profit'] }}{% endif %} ريال
+                    </span>
                 </div>
                 {% endfor %}
             </div>
@@ -150,12 +156,14 @@
                 {% for item in top_items %}
                 <div class="top-item">
                     <div class="rank">{{ loop.index }}</div>
-                    <div class="name">{{ item.name }}</div>
-                    <div class="sold">{{ item.total_sold }} قطعة</div>
+                    <div class="name">{{ item['name'] }}</div>
+                    <div class="sold">{{ item['total_sold'] }} قطعة</div>
                 </div>
-                <!-- تعديل السطر لعرض أرباح الصنف الصافية إلى جانب البيانات السابقة -->
                 <div style="font-size: 12px; color: #666; padding-right: 45px; margin-top: -5px; margin-bottom: 5px;">
-                    إيراد: {{ "%.0f"|format(item.revenue) }} ريال | <span style="color: #28a745; font-weight: bold;">ربح الصنف: {{ "%.0f"|format(item.item_profit) }} ريال</span> | متبقي: {{ item.current_stock }}
+                    إيراد: {% if item['revenue'] is number %}{{ "%.0f"|format(item['revenue']) }}{% else %}{{ item['revenue'] }}{% endif %} ريال | 
+                    <span style="color: #28a745; font-weight: bold;">
+                        ربح الصنف: {% if item['item_profit'] is number %}{{ "%.0f"|format(item['item_profit']) }}{% else %}{{ item['item_profit'] }}{% endif %} ريال
+                    </span> | متبقي: {{ item['current_stock'] }}
                 </div>
                 {% else %}
                 <div style="text-align: center; color: #999;">لا توجد مبيعات بعد</div>
@@ -172,17 +180,17 @@
                 </div>
                 {% for item in stock_ranking[:15] %}
                 <div class="stock-row">
-                    <span style="flex: 2;">{{ item.name }}</span>
+                    <span style="flex: 2;">{{ item['name'] }}</span>
                     <span style="width: 60px; text-align: center;" 
-                          class="{% if item.quantity == 0 %}status-critical
-                                 {% elif item.quantity <= 2 %}status-critical
-                                 {% elif item.quantity <= 5 %}status-low
-                                 {% elif item.quantity <= 10 %}status-good
+                          class="{% if item['quantity'] == 0 %}status-critical
+                                 {% elif item['quantity'] <= 2 %}status-critical
+                                 {% elif item['quantity'] <= 5 %}status-low
+                                 {% elif item['quantity'] <= 10 %}status-good
                                  {% else %}status-excellent{% endif %}">
-                        {{ item.quantity }}
+                        {{ item['quantity'] }}
                     </span>
                     <span style="width: 80px; text-align: left; font-size: 12px;">
-                        {{ item.stock_status }}
+                        {{ item['stock_status'] }}
                     </span>
                 </div>
                 {% endfor %}
@@ -201,10 +209,12 @@
                 {% set total_purchase = 0 %}
                 {% set total_selling = 0 %}
                 {% for item in stock_ranking %}
-                    {% set total_purchase = total_purchase + (item.purchase_price * item.quantity) %}
-                    {% set total_selling = total_selling + (item.current_price * item.quantity) %}
+                    {% set total_purchase = total_purchase + (item['purchase_price'] * item['quantity']) %}
+                    {% set total_selling = total_selling + (item['current_price'] * item['quantity']) %}
                 {% endfor %}
-                <div class="stat-number">{{ "%.2f"|format(total_selling - total_purchase) }} ريال</div>
+                <div class="stat-number">
+                    {% if (total_selling - total_purchase) is number %}{{ "%.2f"|format(total_selling - total_purchase) }}{% else %}{{ total_selling - total_purchase }}{% endif %} ريال
+                </div>
                 <div class="stat-label">الأرباح المتوقعة عند بيع كل المخزون</div>
                 <hr style="margin: 15px 0;">
                 <div>قيمة المخزون بسعر الشراء: {{ "%.2f"|format(total_purchase) }} ريال</div>
@@ -214,11 +224,3 @@
             <div class="card">
                 <h3>💡 نصائح سريعة</h3>
                 <ul style="padding-right: 20px;">
-                    <li>✅ الأصناف التي نفدت: {{ out_of_stock }}</li>
-                    <li>⚠️ الأصناف المنخفضة (أقل من 5): {{ low_stock }}</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
