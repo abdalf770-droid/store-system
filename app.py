@@ -277,14 +277,14 @@ def low_stock_alert():
 
 @app.route('/dashboard_stats')
 def dashboard_stats():
-    """إحصائيات متقدمة لوحة التحكم - نسخة مخصصة لنوع البيانات TEXT و FLOAT4"""
+    """إحصائيات متقدمة وموسعة لوحة التحكم - نسخة الـ 30 يوماً والأرباح المخصصة لنوع TEXT و FLOAT4"""
     if 'user' not in session:
         return redirect(url_for('login'))
     
-    # جلب تواريخ اليوم والأيام السابقة كأعداد نصوص للمقارنة الآمنة
+    # جلب تاريخ اليوم بصيغة نصية للمقارنة الآمنة مع عمود TEXT
     today_str = datetime.now().strftime('%Y-%m-%d')
     
-    # 1. إحصائيات اليوم (مقارنة نصية آمنة ومقاومة للـ NULL)
+    # 1. إحصائيات اليوم (العدد، الحبات، وإجمالي الإيرادات اليومية)
     today_sales_count = execute_query("SELECT COUNT(*) as count FROM invoices WHERE COALESCE(date, '') LIKE %s", 
                                       (today_str + '%',), fetch_one=True)['count']
     
@@ -294,22 +294,38 @@ def dashboard_stats():
     today_revenue = execute_query("SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE COALESCE(date, '') LIKE %s",
                                   (today_str + '%',), fetch_one=True)['total']
     
-    # 2. استعلام النشاط الأسبوعي (يستخرج أول 10 حروف من النص كمقارنة تاريخ دون تحويلات معقدة تنهر السيرفر)
+    # حساب أرباح مبيعات اليوم الصافية: (سعر بيع الفاتورة - (الكمية المباعة * سعر شراء الصنف الأصل))
+    today_profit_data = execute_query('''
+        SELECT COALESCE(SUM(invoices.total - (invoices.quantity_sold * items.purchase_price)), 0) as profit
+        FROM invoices
+        JOIN items ON invoices.item_id = items.id
+        WHERE COALESCE(invoices.date, '') LIKE %s
+    ''', (today_str + '%',), fetch_one=True)
+    today_profit = today_profit_data['profit'] if today_profit_data else 0
+    
+    # 2. نشاط آخر 30 يوماً بالتفصيل (اليوم، الإيراد، وصافي أرباح اليوم)
     weekly_activity = execute_query('''
-        SELECT SUBSTRING(COALESCE(date, '') FROM 1 FOR 10) as day, COUNT(*) as invoices, SUM(COALESCE(total, 0)) as revenue
+        SELECT 
+            SUBSTRING(COALESCE(invoices.date, '') FROM 1 FOR 10) as day, 
+            COUNT(DISTINCT invoices.id) as invoices, 
+            SUM(COALESCE(invoices.total, 0)) as revenue,
+            SUM(COALESCE(invoices.total - (invoices.quantity_sold * items.purchase_price), 0)) as profit
         FROM invoices 
-        WHERE date IS NOT NULL AND date <> '' AND SUBSTRING(date FROM 1 FOR 10) >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')
-        GROUP BY SUBSTRING(COALESCE(date, '') FROM 1 FOR 10)
+        JOIN items ON invoices.item_id = items.id
+        WHERE invoices.date IS NOT NULL AND invoices.date <> '' 
+          AND SUBSTRING(invoices.date FROM 1 FOR 10) >= TO_CHAR(CURRENT_DATE - INTERVAL '30 days', 'YYYY-MM-DD')
+        GROUP BY SUBSTRING(COALESCE(invoices.date, '') FROM 1 FOR 10)
         ORDER BY day DESC
     ''', fetch_all=True)
     
-    # 3. استعلام أكثر المواد مبيعاً (متوافق مع دمج الجداول بدون CAST زائف)
+    # 3. أكثر المواد مبيعاً شاملة حساب صافي الربح التراكمي للصنف
     top_items = execute_query('''
         SELECT 
             items.name,
             COALESCE(SUM(invoices.quantity_sold), 0) as total_sold,
             COUNT(invoices.id) as times_sold,
             COALESCE(SUM(invoices.total), 0) as revenue,
+            COALESCE(SUM(invoices.total - (invoices.quantity_sold * items.purchase_price), 0)) as item_profit,
             items.current_price,
             items.quantity as current_stock
         FROM items 
@@ -319,13 +335,10 @@ def dashboard_stats():
         LIMIT 10
     ''', fetch_all=True)
     
-    # 4. استعلام المخزون وترتيب الكميات
+    # 4. جلب بيانات المخزون وترتيب النواقص
     stock_ranking = execute_query('''
         SELECT 
-            name,
-            quantity,
-            current_price,
-            purchase_price,
+            name, quantity, current_price, purchase_price,
             CASE 
                 WHEN quantity = 0 THEN 'نفد بالكامل'
                 WHEN quantity <= 2 THEN 'حرج جداً'
@@ -345,13 +358,13 @@ def dashboard_stats():
                          today_sales_count=today_sales_count,
                          today_items_sold=today_items_sold,
                          today_revenue=today_revenue,
+                         today_profit=today_profit,
                          weekly_activity=weekly_activity,
                          top_items=top_items,
                          stock_ranking=stock_ranking,
                          total_items=total_items,
                          out_of_stock=out_of_stock,
                          low_stock=low_stock)
-
 
 
 @app.route('/shortages', methods=['GET', 'POST'])
