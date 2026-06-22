@@ -207,7 +207,7 @@
     <script>
 // 1. تسجيل تطبيق الويب ليعمل بدون إنترنت كلياً
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/service-worker.js')
+    navigator.serviceWorker.register('/service-worker.js') // بدون كلمة static
     .then(() => console.log("✅ نظام الأوفلاين الشامل جاهز ومفعل في المتصفح!"))
     .catch(err => console.error("❌ فشل تفعيل وضع الأوفلاين:", err));
 }
