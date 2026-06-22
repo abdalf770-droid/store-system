@@ -201,7 +201,31 @@
         <a href="/backup" class="nav-btn" onclick="alert('جاري إنشاء النسخة الاحتياطية...')">
             <div class="icon">💾</div>
             <span>نسخة احتياطية</span>
+    
         </a>
     </div>
+    <script>
+// 1. تسجيل تطبيق الويب ليعمل بدون إنترنت كلياً
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/service-worker.js')
+    .then(() => console.log("✅ نظام الأوفلاين الشامل جاهز ومفعل في المتصفح!"))
+    .catch(err => console.error("❌ فشل تفعيل وضع الأوفلاين:", err));
+}
+
+// 2. إنشاء هيكل الجداول الأربعة الكاملة داخل المتصفح (IndexedDB)
+const dbRequest = indexedDB.open("FullStoreOfflineDB", 1);
+let localDB;
+
+dbRequest.onupgradeneeded = function(e) {
+    localDB = e.target.result;
+    // إنشاء جداول النظام الأربعة المتطابقة مع Neon
+    if (!localDB.objectStoreNames.contains("items")) localDB.createObjectStore("items", { keyPath: "id" });
+    if (!localDB.objectStoreNames.contains("invoices")) localDB.createObjectStore("invoices", { keyPath: "id", autoIncrement: true });
+    if (!localDB.objectStoreNames.contains("purchase_orders")) localDB.createObjectStore("purchase_orders", { keyPath: "id", autoIncrement: true });
+    if (!localDB.objectStoreNames.contains("returns_log")) localDB.createObjectStore("returns_log", { keyPath: "id", autoIncrement: true });
+};
+dbRequest.onsuccess = function(e) { localDB = e.target.result; };
+</script>
+
 </body>
 </html>
