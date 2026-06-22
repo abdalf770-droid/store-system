@@ -211,14 +211,25 @@ def dashboard():
     if 'user' not in session:
         return redirect(url_for('login'))
     
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # 1. نظام التنبيه الذكي لمخصص الديون اليومي (الـ 1000 ريال)
+    today_debt_check = execute_query('''
+        SELECT COUNT(*) as count FROM cash_flow 
+        WHERE category = 'سداد ديون' AND COALESCE(date, '') LIKE %s
+    ''', (today + '%',), fetch_one=True)['count']
+    
+    alert_debt = True if today_debt_check == 0 else False
+    
+    # الإحصائيات المالية للمخزن والمبيعات
     total_purchase = execute_query('SELECT COALESCE(SUM(purchase_price * quantity), 0) as total FROM items', fetch_one=True)['total']
     total_selling = execute_query('SELECT COALESCE(SUM(current_price * quantity), 0) as total FROM items', fetch_one=True)['total']
-    today = datetime.now().strftime('%Y-%m-%d')
+    
     today_sales = execute_query('SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE date LIKE %s', 
                                (today + '%',), fetch_one=True)['total']
     expected_profit = total_selling - total_purchase
     
-    # إحصائيات التنبيهات
+    # إحصائيات التنبيهات للنواقص
     critical_items_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity <= 1', fetch_one=True)['count']
     low_stock_count = execute_query('SELECT COUNT(*) as count FROM items WHERE quantity BETWEEN 2 AND 5', fetch_one=True)['count']
     
@@ -231,7 +242,8 @@ def dashboard():
                          today_sales=today_sales, 
                          expected_profit=expected_profit,
                          critical_items_count=critical_items_count,
-                         low_stock_count=low_stock_count)
+                         low_stock_count=low_stock_count,
+                         alert_debt=alert_debt) # إرسال التنبيه للرئيسية
 
 @app.route('/sales', methods=['GET', 'POST'])
 def sales():
@@ -247,15 +259,31 @@ def sales():
         
         item = execute_query('SELECT * FROM items WHERE id = %s', (item_id,), fetch_one=True)
         if item and qty <= item['quantity']:
-            price = custom_price if custom_price > 0 else item['current_price']
-            total = price * qty
+            # السعر الافتراضي للصنف
+            default_price = item['current_price']
+            # السعر الفعلي الذي تم البيع به
+            price = custom_price if custom_price > 0 else default_price
             
-            execute_query('INSERT INTO invoices (date, item_id, quantity_sold, selling_price, total) VALUES (%s, %s, %s, %s, %s)',
-                       (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), item_id, qty, price, total))
-            execute_query('UPDATE items SET quantity = quantity - %s WHERE id = %s', (qty, item_id))
+            # احتساب الإجمالي قبل الخصم، وقيمة الخصم الممنوح تلقائياً وصافي الفاتورة
+            total_before_discount = default_price * qty
+            total_after_sale = price * qty
+            
+            # إذا باع بسعر أقل من الافتراضي يحسب الفارق كخصم، وإلا فالخصم صفر
+            discount = (total_before_discount - total_after_sale) if total_before_discount > total_after_sale else 0
+            net_total = total_after_sale
+            
+            # إدخال الفاتورة شاملة الخصم والصافي لضبط سجل الأرباح
+            execute_query('''
+                INSERT INTO invoices (date, item_id, quantity_sold, selling_price, total, discount, net_total) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), item_id, qty, price, total_before_discount, discount, net_total), commit=True)
+            
+            # تحديث الكمية في المخزن
+            execute_query('UPDATE items SET quantity = quantity - %s WHERE id = %s', (qty, item_id), commit=True)
             return redirect(url_for('sales'))
     
     return render_template('sales.html', items=items)
+
 
 @app.route('/inventory')
 def inventory():
