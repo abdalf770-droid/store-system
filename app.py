@@ -255,28 +255,31 @@ def sales():
     if request.method == 'POST':
         item_id = request.form['item_id']
         qty = int(request.form['quantity'])
-        custom_price = float(request.form.get('custom_price', 0))
+        custom_price_form = request.form.get('custom_price', '0')
+        
+        # تحويل آمن للسعر المخصص ليتجنب النصوص الفارغة
+        custom_price = float(custom_price_form) if str(custom_price_form).strip() else 0.0
         
         item = execute_query('SELECT * FROM items WHERE id = %s', (item_id,), fetch_one=True)
         if item and qty <= item['quantity']:
-            # السعر الافتراضي للصنف
             default_price = item['current_price']
-            # السعر الفعلي الذي تم البيع به
+            
+            # السعر الفعلي للبيع: المخصص إن وجد، وإلا الافتراضي
             price = custom_price if custom_price > 0 else default_price
             
-            # احتساب الإجمالي قبل الخصم، وقيمة الخصم الممنوح تلقائياً وصافي الفاتورة
+            # احتساب الإجمالي الافتراضي والبيع الفعلي الحقيقي
             total_before_discount = default_price * qty
-            total_after_sale = price * qty
+            total_after_sale = price * qty  # الإجمالي الحقيقي (300 ريال في مثالك)
             
-            # إذا باع بسعر أقل من الافتراضي يحسب الفارق كخصم، وإلا فالخصم صفر
+            # احتساب قيمة الخصم الممنوح للزبون إن وجد
             discount = (total_before_discount - total_after_sale) if total_before_discount > total_after_sale else 0
             net_total = total_after_sale
             
-            # إدخال الفاتورة شاملة الخصم والصافي لضبط سجل الأرباح
+            # التعديل الحاسم: نرسل total_after_sale إلى عمود total وعمود net_total لضبط حساب الأرباح
             execute_query('''
                 INSERT INTO invoices (date, item_id, quantity_sold, selling_price, total, discount, net_total) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), item_id, qty, price, total_before_discount, discount, net_total), commit=True)
+            ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), item_id, qty, price, total_after_sale, discount, net_total), commit=True)
             
             # تحديث الكمية في المخزن
             execute_query('UPDATE items SET quantity = quantity - %s WHERE id = %s', (qty, item_id), commit=True)
