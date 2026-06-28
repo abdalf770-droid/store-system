@@ -75,14 +75,14 @@
     <div class="container">
         <a href="/dashboard" class="back-btn">🏠 العودة للرئيسية</a>
         <h2>📋 سجل المبيعات والفواتير</h2>
-        
         {% if sales %}
         {% set total_sales = namespace(value=0) %}
         {% set total_profit = namespace(value=0) %}
         {% for sale in sales %}
-            {% set total_sales.value = total_sales.value + sale.total %}
-            {% set total_profit.value = total_profit.value + sale.profit %}
+            {% set total_sales.value = total_sales.value + (sale.total | default(0) if sale.total else 0) %}
+            {% set total_profit.value = total_profit.value + (sale.profit | default(0) if sale.profit else 0) %}
         {% endfor %}
+
         
         <div class="summary">
             <div class="summary-card">
