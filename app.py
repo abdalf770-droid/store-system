@@ -276,11 +276,13 @@ def sales():
             net_total = total_after_sale
             
             # التعديل الحاسم: نرسل total_after_sale إلى عمود total وعمود net_total لضبط حساب الأرباح
+                       # إدخال الفاتورة شاملة الخصم والصافي لضبط سجل الأرباح
+            # التعديل الحاسم: نرسل total_after_sale إلى عمود total وعمود net_total لضبط حساب الأرباح
             execute_query('''
                 INSERT INTO invoices (date, item_id, quantity_sold, selling_price, total, discount, net_total) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), item_id, qty, price, total_after_sale, discount, net_total), commit=True)
-            
+
             # تحديث الكمية في المخزن
             execute_query('UPDATE items SET quantity = quantity - %s WHERE id = %s', (qty, item_id), commit=True)
             return redirect(url_for('sales'))
