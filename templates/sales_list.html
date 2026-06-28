@@ -118,19 +118,21 @@
                 </thead>
                 <tbody>
                     {% for sale in sales %}
+                    {% set current_profit = sale.profit | default(0) if sale.profit else 0 %}
+                    {% set current_profit_percent = sale.profit_percent | default(0) if sale.profit_percent else 0 %}
                     <tr>
-                        <td>{{ sale.date[:16] }}</td>
+                        <td>{{ sale.date[:16] if sale.date else '' }}</td>
                         <td>{{ sale.item_name or 'منتج محذوف' }}</td>
-                        <td>{{ sale.quantity_sold }}</td>
+                        <td>{{ sale.quantity_sold or 0 }}</td>
                         <td>{{ "%.2f"|format(sale.purchase_price or 0) }}</td>
-                        <td>{{ "%.2f"|format(sale.selling_price) }}</td>
-                        <td>{{ "%.2f"|format(sale.total) }}</td>
+                        <td>{{ "%.2f"|format(sale.selling_price or 0) }}</td>
+                        <td>{{ "%.2f"|format(sale.total or 0) }}</td>
                         <td>{{ "%.2f"|format(sale.total_cost or 0) }}</td>
-                        <td class="{% if sale.profit > 0 %}profit-positive{% else %}profit-negative{% endif %}">
-                            {{ "%.2f"|format(sale.profit or 0) }}
+                        <td class="{% if current_profit > 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            {{ "%.2f"|format(current_profit) }}
                         </td>
-                        <td class="{% if sale.profit_percent > 0 %}profit-positive{% else %}profit-negative{% endif %}">
-                            {% if sale.profit_percent > 0 %}+{% endif %}{{ "%.1f"|format(sale.profit_percent or 0) }}%
+                        <td class="{% if current_profit_percent > 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            {% if current_profit_percent > 0 %}+{% endif %}{{ "%.1f"|format(current_profit_percent) }}%
                         </td>
                         <td>
                             <a href="/edit_sale/{{ sale.id }}" class="edit-btn">✏️ تعديل</a>
